@@ -6,7 +6,11 @@ Use Magpie models and routing groups from Trae CN's own model picker. This is an
 
 ## Compatibility and installation
 
-Supports verified Windows builds of Trae CN 3.4.18 and 3.4.20. The former was tested with Magpie 0.1.3078; the latter with Magpie 0.1.3960. Internal model APIs and native credential encoding are build dependent. Version and SHA-256 guards reject unknown client builds. Other operating systems and Trae international are not supported yet.
+Supports verified Windows builds of Trae CN 3.4.18 and 3.4.20, plus the verified macOS arm64 build of Trae CN 3.4.20. The 3.4.18 build was tested with Magpie 0.1.3078; the 3.4.20 builds with Magpie 0.1.3960 (Windows) and 0.1.4574 (macOS). Internal model APIs and native credential encoding are build dependent. Version and SHA-256 guards reject unknown client builds. Linux and Trae international are not supported yet.
+
+On macOS, `trae-paths.mjs` resolves `/Applications/Trae CN.app` and `~/Library/Application Support/Trae CN`, the native codec material comes from `libharness.dylib` / `libai_agent.dylib`, and `x-device-type` is `mac`. The adapter does **not** patch `out/main.js` on macOS: that file is sealed by the Developer ID signature, so appending a loader breaks `codesign`. Trae already refreshes the catalog when the model menu opens (`refreshModelListForCurrentAgent`, plus a 10-minute poll), so new entries appear without restarting Trae.
+
+Two things on macOS are decided by Magpie itself rather than this adapter. First, the agent descriptor runs in moejs, which has no `process.platform`, so `dir` in `trae.agent.js` still reads `$APPDATA/Trae CN`; the first connect (the switch on the Agents page, or `magpie trae-local provider magpie`) writes `connection.json`, and from then on `magpie ls` finds Trae. Second, `library.mcp` also starts with `$APPDATA`, which is empty on macOS, so the expanded path is relative and Magpie drops it: **the Library's MCP servers are not written into Trae yet**, while rules and skills (`~` paths) sync as usual.
 
 Version 0.3.4 restores model additions after updating Trae to 3.4.20 and adapts the client refresh component to that build. Both native DLLs remain hash guarded. Client entry-point backups are stored separately for each Trae version, so rollback uses the matching original file.
 
@@ -16,7 +20,7 @@ Install and sign in to Trae CN, configure working models in Magpie, then run:
 magpie plugin add "github:lmy414/magpie-agent-trae#v0.3.4"
 ```
 
-Enable Trae on Magpie's Agents page. Expand the remaining agents if the row is collapsed. Restart Trae once after the refresh component is first installed or reinstalled after a Trae upgrade, then choose a model ending in `· Magpie`. Keep Magpie running and Trae signed in. Install only one of the standalone and community packages.
+Enable Trae on Magpie's Agents page. Expand the remaining agents if the row is collapsed. On Windows, restart Trae once after the refresh component is first installed or reinstalled after a Trae upgrade; on macOS no client change is needed. Then choose a model ending in `· Magpie`. Keep Magpie running and Trae signed in. Install only one of the standalone and community packages.
 
 ## Behavior
 
@@ -34,7 +38,7 @@ TraeWork session orchestration still runs in Trae's cloud. Model requests reach 
 
 ## Client refresh and rollback
 
-For open-window updates, the adapter backs up Trae's `out/main.js`, appends a loader and installs `out/magpie-model-refresh.cjs`. The component watches a credential-free catalog revision and emits Trae's existing model-management notification. It does not select models, focus windows, edit prompts or open a debugger port. Unknown builds are left unchanged.
+On Windows, for open-window updates, the adapter backs up Trae's `out/main.js`, appends a loader and installs `out/magpie-model-refresh.cjs`. The component watches a credential-free catalog revision and emits Trae's existing model-management notification. It does not select models, focus windows, edit prompts or open a debugger port. Unknown builds are left unchanged. On macOS the client is never modified; `cli.mjs restore-client` reports `state: "not_needed"`.
 
 Disconnect the Agent and wait for `disconnected` before uninstalling. Keep the recovery journal until restoration completes. User-edited entries are left intact with `model_edited_in_trae`.
 
