@@ -1,16 +1,49 @@
 import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { clientDecode } from './vendor/trae-client-codec.mjs';
 import { encodeCredential, readNativeCredentialProfile } from './trae-local-token.mjs';
+import { resolveTraeLayout } from './trae-paths.mjs';
 
-const ORIGIN = 'https://trae-api-cn.mchost.guru';
+export const ORIGIN = 'https://trae-api-cn.mchost.guru';
 export const FUNCTIONS = ['chat_v3', 'solo_work_lite', 'solo_agent', 'solo_agent_lite', 'solo_coder'];
 
-export function readSession({ home = os.homedir(), roaming = process.env.APPDATA, local = process.env.LOCALAPPDATA } = {}) {
-  const file = path.join(roaming || path.join(home, 'AppData/Roaming'), 'Trae CN/User/globalStorage/storage.json');
-  const storage = JSON.parse(fs.readFileSync(file, 'utf8'));
+/**
+ * resolveOrigin gives the Trae endpoint the signed-in account talks to.
+ * A personal account always uses trae-api-cn.mchost.guru. A saas account with
+ * a tenant keeps its models on the tenant's own host, and the client itself
+ * takes saasBootConfig.apiHost / consoleHost as its API origin, so the
+ * endpoint has to follow the account: entries written elsewhere never show up
+ * in that client.
+ */
+export function resolveOrigin(auth) {
+  const account = auth?.account;
+  if (!account || account.scope !== 'saas' || !account.tenant_id) return ORIGIN;
+  const boot = account.saasBootConfig || {};
+  const host = typeof boot.apiHost === 'string' && boot.apiHost.trim() ? boot.apiHost.trim()
+    : typeof boot.consoleHost === 'string' ? boot.consoleHost.trim() : '';
+  if (!host) return ORIGIN;
+  try {
+    const url = new URL(host);
+    // Only an https trae.cn host is accepted, so the sign-in is never sent to
+    // an unexpected origin.
+    if (url.protocol !== 'https:' || !/(^|\.)trae\.cn$/i.test(url.hostname)) return ORIGIN;
+    console.log(`Trae session: enterprise tenant ${account.tenant_id}, api ${url.origin}`);
+    return url.origin;
+  } catch { return ORIGIN; }
+}
+
+/**
+ * readSession reads the signed-in account out of the Trae client's own storage
+ * and builds the headers its native model API expects. The layout comes from
+ * resolveTraeLayout, so Windows and macOS share one code path; an explicit
+ * local keeps the Windows layout, as the existing tests and callers pass it.
+ */
+export function readSession({ home = os.homedir(), roaming = process.env.APPDATA, local = process.env.LOCALAPPDATA,
+  platform, app: appOverride } = {}) {
+  const layout = resolveTraeLayout({ platform, home, roaming, local, app: appOverride });
+  console.log(`Trae session: reading ${layout.platform} client at ${layout.sessionFile}`);
+  const storage = JSON.parse(fs.readFileSync(layout.sessionFile, 'utf8'));
   const raw = storage['iCubeAuthInfo://icube.cloudide'];
   if (typeof raw !== 'string') throw new Error('trae_not_signed_in');
   const auth = JSON.parse(raw.trim().startsWith('{') ? raw : clientDecode(raw));
@@ -19,20 +52,24 @@ export function readSession({ home = os.homedir(), roaming = process.env.APPDATA
   if (!claims.exp || claims.exp * 1000 <= Date.now() + 30000) throw new Error('trae_sign_in_expired');
   const devices = Object.keys(storage).filter(k => /^iCubeAuthInfo:\/\/icube-dc:\d+$/.test(k));
   if (devices.length !== 1) throw new Error('trae_device_unavailable');
-  const product = JSON.parse(fs.readFileSync(path.join(local, 'Programs/Trae CN/resources/app/product.json'), 'utf8'));
+  const product = JSON.parse(fs.readFileSync(layout.product, 'utf8'));
   const region = typeof auth.userRegion === 'string' ? auth.userRegion : auth.userRegion?.region;
   return {
     account: createHash('sha256').update(String(auth.userId)).digest('hex'),
+    // An enterprise account keeps its models on the tenant host; a personal
+    // one stays on trae-api-cn.
+    origin: resolveOrigin(auth),
+    tenant: auth.account?.tenant_id ? String(auth.account.tenant_id) : '',
     headers: { Authorization: `Cloud-IDE-JWT ${auth.token}`, 'Content-Type': 'application/json',
       'X-Cloudide-Token': auth.token, 'x-ide-token': auth.token, 'x-uid': String(auth.userId),
       'x-app-id': '6eefa01c-1036-4c7e-9ca5-d891f63bfcd8', 'x-device-id': devices[0].split(':').at(-1),
       'x-app-version': product.appVersion, 'x-ide-version': product.appVersion,
-      'x-device-type': 'windows', 'x-user-region': region || 'CN' },
+      'x-device-type': layout.deviceType, 'x-user-region': region || 'CN' },
   };
 }
 
 export class TraeAPI {
-  constructor(session, { request = fetch, origin = ORIGIN,
+  constructor(session, { request = fetch, origin = session?.origin || ORIGIN,
     encodeEmptySecret = () => encodeCredential('', readNativeCredentialProfile()) } = {}) {
     this.session = session; this.request = request; this.origin = origin; this.encodeEmptySecret = encodeEmptySecret;
   }

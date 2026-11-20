@@ -13,7 +13,11 @@ export const agent = {
     mcpFormat: 'claude',
     skills: '~/.trae-cn/skills',
   },
-  notice: '自动同步模型、图片能力和思考档位；移除或断开时撤回未手动修改的条目。首次安装刷新组件后重启 Trae 一次，之后目录变化自动刷新。',
+  // This descriptor runs in moejs, where there is no process.platform, so the
+  // advice covers both: macOS never touches Trae's out/main.js (inside the
+  // Developer ID seal) and refreshes the catalog when the model menu opens,
+  // while Windows needs one restart after the refresh component is installed.
+  notice: '自动同步模型、图片能力和思考档位；移除或断开时撤回未手动修改的条目。在 Trae 里打开模型菜单即可看到最新目录；Windows 首次安装刷新组件后需重启 Trae 一次。',
 };
 
 export function connect({ gateway, models }) {

@@ -4,7 +4,11 @@
 
 让 Trae CN 使用 Magpie 中配置的模型和路由组。接入后，在 Trae 自己的模型菜单中切换带“· Magpie”的条目。
 
-这是非官方 Agent 适配器，支持 **Windows 上已核验的 Trae CN 3.4.18 和 3.4.20 构建**。插件调用 Trae 客户端内部接口，并校验客户端文件哈希。其他构建、国际版、macOS 和 Linux 尚未适配。
+这是非官方 Agent 适配器，支持 **Windows 上已核验的 Trae CN 3.4.18 和 3.4.20 构建**，以及 **macOS（arm64）上的 Trae CN 3.4.20 构建**。插件调用 Trae 客户端内部接口，并校验客户端文件哈希。其他构建、国际版和 Linux 尚未适配。
+
+macOS 与 Windows 的差异：应用与数据目录改由 [`trae-paths.mjs`](trae-paths.mjs) 解析（`/Applications/Trae CN.app`、`~/Library/Application Support/Trae CN`）；原生加密材料从 `libharness.dylib` / `libai_agent.dylib` 提取；请求头 `x-device-type` 使用 Trae 自己映射的 `mac`。**macOS 不修改 `out/main.js`**：该文件在 Developer ID 封签内，追加加载器会让 `codesign` 报 `a sealed resource is missing or invalid`。Trae 自带“打开模型菜单即刷新目录”的通道（`refreshModelListForCurrentAgent`，默认每 10 分钟轮询一次），因此 macOS 上打开模型菜单就能看到最新条目，无需重启 Trae。
+
+macOS 上有两处由 Magpie 主程序而非本插件决定的行为需要知道：其一，插件描述符在 moejs 中执行，拿不到 `process.platform`，因此 `trae.agent.js` 的 `dir` 仍写 `$APPDATA/Trae CN`；首次接入前先运行一次 `magpie trae-local provider magpie`（或直接在 Agent 页面打开开关）写出 `connection.json`，之后 `magpie ls` 就能识别到 Trae。其二，`library.mcp` 同样以 `$APPDATA` 开头，macOS 上该变量为空，展开后的相对路径会被 Magpie 丢弃，**资源库的 MCP 服务器目前不会写进 Trae**；规则和技能（`~` 路径）正常同步。
 
 0.3.4 修复了 Trae 升级到 3.4.20 后无法新增模型的问题，并适配新版客户端的菜单刷新组件。凭据模块仍逐一核对两个 DLL 的 SHA-256。客户端入口备份按 Trae 版本分别保存，恢复时使用对应版本的原文件。
 
@@ -12,6 +16,7 @@
 | --- | --- | --- |
 | 3.4.18 指定构建 | Windows、Magpie 0.1.3078 | 保留 0.3.3 已验证的目录同步、窗口刷新和 DeepSeek 聊天支持 |
 | 3.4.20 指定构建 | Windows、Magpie 0.1.3960 | 0.3.4 已验证模型新增、修改、删除和回读，用户重启后确认增删模型与菜单刷新正常 |
+| 3.4.20 指定构建 | macOS arm64、Magpie 0.1.4574 | 已验证模型新增、修改、删除、回读、断开还原、动态重新接入，以及经本机桥接的真实聊天 |
 
 ## 安装
 
@@ -24,8 +29,8 @@ magpie plugin add "github:lmy414/magpie-agent-trae#v0.3.4"
 也可以下载 [Release](https://github.com/lmy414/magpie-agent-trae/releases) 中的源码，进入解压后的目录，运行 `magpie plugin add .`。
 
 1. 在 Magpie 的 Agent 页面找到 Trae，打开接入开关。列表较长时，展开底部“显示其余”区域。
-2. 首次安装客户端刷新组件，或 Trae 升级后重新安装该组件时，自行重启 Trae 一次。
-3. 在 Trae 的模型菜单选择带“· Magpie”的条目。之后新增、移除模型和断开接入会自动刷新已打开的窗口。
+2. Windows：首次安装客户端刷新组件，或 Trae 升级后重新安装该组件时，自行重启 Trae 一次。macOS：无需任何客户端改动。
+3. 在 Trae 的模型菜单选择带“· Magpie”的条目。之后新增、移除模型和断开接入会自动刷新已打开的窗口；macOS 上重新打开模型菜单即可。
 
 保持 Magpie 运行、Trae 登录。插件不会切换窗口焦点、修改输入框或自动选择模型。只安装本仓库与社区包中的一个版本，避免两个运行时同时管理同一套配置。
 
@@ -36,7 +41,7 @@ magpie plugin add "github:lmy414/magpie-agent-trae#v0.3.4"
 | 模型目录 | 同步 Magpie 提供的模型和路由组，在 Trae 内切换 |
 | 模型能力 | 同步图片能力、上下文长度、输出长度和思考档位 |
 | 请求转发 | 保留流式输出、图片、工具调用和思考参数 |
-| 目录更新 | 每 5 秒检查控制文件，写入并核对后通知 Trae 刷新 |
+| 目录更新 | 每 5 秒检查控制文件，写入并核对；Windows 通知已打开的窗口，macOS 由 Trae 打开模型菜单时自行刷新 |
 | 移除与断开 | 删除插件创建且未手动修改的条目，恢复接管前已有条目的配置 |
 | 资源库 | 通过 Magpie Library 选择并同步 MCP、技能和规则 |
 
@@ -82,13 +87,13 @@ Trae 要求凭据使用原生编码格式。[`trae-local-token.mjs`](https://git
 
 每次写操作先记录待完成状态，再调用接口并回读确认。若响应丢失，下次同步先查询原生目录，判断操作是否已经完成，避免重复创建或误删。
 
-模型目录写入成功后，同步器生成不包含原始凭据的目录修订号。[`trae-refresh-notifier.cjs`](https://github.com/lmy414/magpie-agent-trae/blob/7cea0df1c9e7fde864479fe9ac81a89c98021bf9/trae-refresh-notifier.cjs#L9) 在 Trae 主进程中每 1 秒检查该修订号，变化时向各个窗口发送 Trae 原生模型变更通知，由窗口重新加载目录。
+模型目录写入成功后，同步器生成不包含原始凭据的目录修订号。[`trae-refresh-notifier.cjs`](https://github.com/lmy414/magpie-agent-trae/blob/7cea0df1c9e7fde864479fe9ac81a89c98021bf9/trae-refresh-notifier.cjs#L9) 在 Trae 主进程中每 1 秒检查该修订号，变化时向各个窗口发送 Trae 原生模型变更通知，由窗口重新加载目录。这条通道需要修改 `out/main.js`，因此**只在 Windows 上安装**；macOS 改用 Trae 自带的 `refreshModelListForCurrentAgent()`（打开模型菜单时强制刷新，另有 10 分钟轮询兜底）。
 
 ### 客户端文件的修改范围
 
 | 功能 | 执行方式 | 实际改动 | 恢复方式 |
 | --- | --- | --- | --- |
-| 模型菜单热更新 | 插件默认启动时尝试安装 | 校验并备份 `out/main.js`，追加加载语句，安装 `out/magpie-model-refresh.cjs` | 执行 `node cli.mjs restore-client` 后重启 Trae |
+| 模型菜单热更新 | Windows 上插件启动时尝试安装；macOS 不安装 | 校验并备份 `out/main.js`，追加加载语句，安装 `out/magpie-model-refresh.cjs` | 执行 `node cli.mjs restore-client` 后重启 Trae |
 | 取消卡死兼容修复 | 源码中的可选脚本，手动执行 | 校验并备份指定 `solo-lite` 程序文件，修复旧订阅延迟状态和取消确认后的状态核对 | 同一脚本使用 `--restore` 后重启 Trae |
 
 热更新的安装入口在 [`index.mjs`](https://github.com/lmy414/magpie-agent-trae/blob/7cea0df1c9e7fde864479fe9ac81a89c98021bf9/index.mjs#L9)，文件修改和恢复在 [`client-refresh.mjs`](https://github.com/lmy414/magpie-agent-trae/blob/7cea0df1c9e7fde864479fe9ac81a89c98021bf9/client-refresh.mjs#L16)。**断开接入会撤回模型配置，客户端入口补丁需要单独恢复。**
@@ -103,7 +108,7 @@ Trae 要求凭据使用原生编码格式。[`trae-local-token.mjs`](https://git
 
 创建、更新和删除都有恢复日志。响应丢失时，插件读取原生目录核对结果；删除只有在确认条目不存在后才完成。账户发生变化时，插件停止使用原账户的恢复日志。
 
-客户端刷新组件独立于模型配置。卸载插件后，在源码目录执行下列命令可恢复原入口文件，然后自行重启 Trae：
+客户端刷新组件独立于模型配置，且只在 Windows 上安装。卸载插件后，在源码目录执行下列命令可恢复原入口文件，然后自行重启 Trae（macOS 上是 no-op，返回 `state: "not_needed"`）：
 
 ```powershell
 node cli.mjs restore-client
@@ -126,7 +131,7 @@ node cli.mjs models
 | 模型恢复日志 | 同目录的 `managed-models.json` |
 | 同步状态 | 同目录的 `sync-status.json` |
 | 客户端刷新记录 | 同目录的 `client-refresh-status.json` |
-| 客户端入口备份 | 同目录的 `client-backups\<Trae 版本>`，3.4.18 和 3.4.20 分别保存 |
+| 客户端入口备份 | 同目录的 `client-backups\<Trae 版本>`，3.4.18 和 3.4.20 分别保存；macOS 为 `3.4.20-darwin`，正常使用时不产生 |
 
 连接信息和恢复日志可能包含凭据，请勿上传到 Issue。报告问题时提供版本、错误代码及已去除凭据的状态信息即可。
 
