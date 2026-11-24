@@ -13,11 +13,10 @@ const instance = Symbol.for('magpie.trae.local.bridge.v1');
  * loader makes codesign report "a sealed resource is missing or invalid"; Trae
  * already refreshes the catalog when the model menu opens, so the loader is
  * installed on Windows only and macOS refreshes itself.
- * options.installClientRefresh overrides it, for a test or for diagnosis.
+ * A Windows user can also disable the component.
  */
 export function wantsClientRefresh(options = {}) {
-  if (typeof options.installClientRefresh === 'boolean') return options.installClientRefresh;
-  return process.platform !== 'darwin';
+  return process.platform === 'win32' && options.installClientRefresh !== false;
 }
 
 export default async function TraeLocalBridge(_input, options = {}) {

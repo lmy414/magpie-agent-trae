@@ -84,33 +84,6 @@ function originalRequest(entry) {
 
 // Only this plugin's endpoint and IDs are managed. The vendor remains the
 // source of truth; nothing is injected into Trae's SQLite cache.
-/**
- * releaseOldOrigin withdraws the entries this plugin made from the endpoint an
- * account has moved off. A personal account and an enterprise account keep
- * their models on different hosts, so entries left behind are invisible in the
- * client. This cleans up from the recovery journal as far as it can; a failure
- * doesn't block the new endpoint, the old entries just stay on the old one.
- */
-async function releaseOldOrigin(state, session) {
-  const api = new TraeAPI({ ...session, origin: state.origin });
-  const remote = await api.list();
-  let released = 0;
-  for (const managed of Object.values(state.entries)) {
-    const entry = remote.find(e => e.id === managed.id);
-    if (!entry) continue;
-    // Entries the user edited are kept, as on a normal disconnect.
-    if (managed.last && managed.last !== fingerprint(entry)) continue;
-    if (managed.created) {
-      await api.call('update_custom_model', { action: 'delete', id: Number(entry.id) });
-    } else {
-      const request = originalRequest(managed.before), status = managed.before.status;
-      if (!desiredMatches(entry, request, status)) await api.call('update_custom_model', updateBody(entry, request, status));
-    }
-    released++;
-  }
-  console.log(`Trae model sync: released ${released} entry(ies) from ${state.origin}`);
-}
-
 export async function syncModels({ paths = syncPaths(), apiFactory = () => new TraeAPI(readSession()), credentialFactory = localCredential, port = 3498 } = {}) {
   const unlock = lock(paths.lock);
   try {
@@ -120,23 +93,20 @@ export async function syncModels({ paths = syncPaths(), apiFactory = () => new T
     if (!connected && !state) return { state: 'disconnected', models: 0 };
     const api = await apiFactory();
     if (state && state.account !== api.session.account) throw new Error('trae_account_changed');
-    // One account may also move between the personal and enterprise endpoints.
-    // State written by an older version has no origin and could only have been
-    // the personal one, so it is read as ORIGIN; otherwise every enterprise
-    // entry would fail to match after an upgrade.
-    const previousOrigin = state ? (state.origin || ORIGIN) : null;
-    // A session without an origin (a test double, or an older caller) is the
-    // personal endpoint.
-    const currentOrigin = api.session.origin || ORIGIN;
-    if (state && previousOrigin !== currentOrigin) {
-      try { await releaseOldOrigin({ ...state, origin: previousOrigin }, api.session); }
-      catch (e) { console.error(`Trae model sync: old origin cleanup skipped (${e.message})`); }
-      state.entries = {}; state.pending = null;
+    const origin = api.session.origin || ORIGIN;
+    const tenant = api.session.tenant || '';
+    if (state) {
+      if (![1, 2].includes(state.version)) throw new Error('sync_state_version_unknown');
+      const sameScope = (state.origin || ORIGIN) === origin && (state.tenant || '') === tenant;
+      if (!sameScope && (state.pending || Object.keys(state.entries).length)) {
+        // Return to the recorded scope to withdraw its entries and verify them first.
+        throw new Error('trae_journal_scope_changed');
+      }
     }
-    if (state && state.origin !== currentOrigin) { state.origin = currentOrigin; write(paths.state, state); }
     let remote = await api.list();
-    state ||= { version: 2, account: api.session.account, origin: currentOrigin, entries: {}, pending: null };
-    if (![1, 2].includes(state.version)) throw new Error('sync_state_version_unknown');
+    state ||= { version: 2, account: api.session.account, entries: {}, pending: null };
+    state.origin = origin;
+    state.tenant = tenant;
     if (!state.pending) {
       for (const managed of Object.values(state.entries)) {
         const entry = remote.find(e => e.id === managed.id);

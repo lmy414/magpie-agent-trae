@@ -31,6 +31,7 @@ function atomicWrite(file, content) {
 export function installClientRefresh({ local = process.env.LOCALAPPDATA, home = os.homedir(),
   platform, roaming, app: appOverride, expectedHash, restore = false } = {}) {
   const layout = resolveTraeLayout({ platform, home, roaming, local, app: appOverride });
+  if (layout.platform === 'darwin') return { state: 'not_needed', platform: 'darwin' };
   const app = layout.app;
   const product = JSON.parse(fs.readFileSync(path.join(app, 'product.json'), 'utf8'));
   const version = product.appVersion;

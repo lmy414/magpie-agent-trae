@@ -327,3 +327,25 @@ test('session reads use the real client shape and reject expired or ambiguous id
   save(Math.floor(Date.now() / 1000) + 600, { 'iCubeAuthInfo://icube-dc:87654321': 'fixture' });
   assert.throws(() => readSession({ roaming, local }), /trae_device_unavailable/);
 });
+
+test('scope changes preserve the journal until the original scope finishes withdrawal', async t => {
+  const f = setup(t);
+  await f.sync();
+  const saved = fs.readFileSync(f.paths.state, 'utf8');
+  const writes = f.api.writes.length;
+  for (const scope of [{ origin: 'https://other.trae.cn' }, { tenant: 'other' }]) {
+    Object.assign(f.api.session, scope);
+    await assert.rejects(f.sync, /trae_journal_scope_changed/);
+    assert.equal(fs.readFileSync(f.paths.state, 'utf8'), saved);
+    assert.equal(f.api.writes.length, writes);
+    delete f.api.session.origin;
+    delete f.api.session.tenant;
+  }
+  fs.unlinkSync(f.paths.control);
+  await f.sync();
+  assert.deepEqual(f.state().entries, {});
+  f.api.session.tenant = 'next';
+  f.write();
+  await f.sync();
+  assert.equal(f.state().tenant, 'next');
+});

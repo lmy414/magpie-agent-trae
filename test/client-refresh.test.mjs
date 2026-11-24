@@ -92,15 +92,16 @@ test('darwin layout keeps the app bundle untouched and resolves the dylib paths'
   assert.equal(layout.sessionFile, path.join(root, 'Library/Application Support/Trae CN/User/globalStorage/storage.json'));
   assert.equal(layout.harness, path.join(app, 'modules/ai-agent/libharness.dylib'));
   assert.equal(layout.legacy, path.join(app, 'modules/ai-agent/libai_agent.dylib'));
-  // 一个未被白名单收录的 darwin 构建必须被拒绝，且不能留下任何改动。
-  assert.throws(() => installClientRefresh({ platform: 'darwin', home: root, app }), /build_unsupported/);
+  for (const restore of [false, true]) {
+    assert.equal(installClientRefresh({ platform: 'darwin', home: root, app, restore }).state, 'not_needed');
+  }
   assert.equal(fs.readFileSync(path.join(app, 'out/main.js'), 'utf8'), original);
   assert.equal(fs.existsSync(path.join(app, 'out/magpie-model-refresh.cjs')), false);
 });
 
-test('wantsClientRefresh keeps the darwin client untouched unless overridden', async () => {
+test('wantsClientRefresh only enables the component on Windows', async () => {
   const { wantsClientRefresh } = await import('../index.mjs');
-  assert.equal(wantsClientRefresh({}), process.platform !== 'darwin');
-  assert.equal(wantsClientRefresh({ installClientRefresh: true }), true);
+  assert.equal(wantsClientRefresh({}), process.platform === 'win32');
+  assert.equal(wantsClientRefresh({ installClientRefresh: true }), process.platform === 'win32');
   assert.equal(wantsClientRefresh({ installClientRefresh: false }), false);
 });
