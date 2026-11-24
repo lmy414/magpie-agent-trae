@@ -14,9 +14,11 @@ import { LOCAL_TOKEN } from '../bridge.mjs';
 
 const exec = promisify(execFile);
 const repo = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const windows = process.platform === 'win32';
+const plugin = path.resolve(process.env.MAGPIE_TEST_PACKAGE || repo);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'magpie-trae-acceptance-'));
-const magpie = process.env.MAGPIE_BIN || path.join(process.env.LOCALAPPDATA, 'Programs/Magpie/Magpie.exe');
-const bun = process.env.MAGPIE_BUN || path.join(os.homedir(), '.cache/magpie/bun/1.4.4/magpie-bun.exe');
+const magpie = process.env.MAGPIE_BIN || (windows ? path.join(process.env.LOCALAPPDATA, 'Programs/Magpie/Magpie.exe') : 'magpie');
+const bun = process.env.MAGPIE_BUN || (windows ? path.join(os.homedir(), '.cache/magpie/bun/1.4.4/magpie-bun.exe') : 'bun');
 const freePort = async () => {
   const server = net.createServer(); server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const port = server.address().port; await new Promise(resolve => server.close(resolve)); return port;
@@ -26,6 +28,10 @@ const env = { ...process.env, HOME: root, USERPROFILE: root, APPDATA: path.join(
   LOCALAPPDATA: path.join(root, 'AppData/Local'), XDG_CONFIG_HOME: path.join(root, '.config'),
   XDG_CACHE_HOME: path.join(root, '.cache'), XDG_STATE_HOME: path.join(root, '.state'),
   MAGPIE_ADDR: `127.0.0.1:${gatewayPort}`, MAGPIE_NO_ACCOUNTS: '1', MAGPIE_BUN: bun };
+if (!windows) {
+  delete env.APPDATA;
+  delete env.LOCALAPPDATA;
+}
 const run = async args => {
   try { return await exec(magpie, args, { cwd: root, env, windowsHide: true, timeout: 90000, maxBuffer: 2 << 20 }); }
   catch (e) { throw new Error(`magpie ${args.slice(0, 2).join(' ')}: ${e.stderr || e.message}`); }
@@ -52,12 +58,13 @@ let child;
 let output = '';
 const base = `http://127.0.0.1:${bridgePort}`;
 const health = async () => { try { return await (await fetch(`${base}/health`, { signal: AbortSignal.timeout(1000) })).json(); } catch { return {}; } };
-const send = (stream, model = 'fixture/first') => fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: {
-  authorization: `Bearer ${LOCAL_TOKEN}`, 'content-type': 'application/json', 'x-forwarded-for': 'fc00::1' },
+const send = (stream, model = 'fixture/first', sessionHeaders = {}) => fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: {
+  authorization: `Bearer ${LOCAL_TOKEN}`, 'content-type': 'application/json', 'x-forwarded-for': 'fc00::1', ...sessionHeaders },
   body: JSON.stringify({ model, stream, messages: [{ role: 'user', content: 'fixture' }] }) });
 const control = path.join(root, '.config/magpie-trae/connection.json');
 try {
-  fs.mkdirSync(path.join(env.APPDATA, 'Trae CN'), { recursive: true });
+  const data = windows ? path.join(env.APPDATA, 'Trae CN') : path.join(root, 'Library/Application Support/Trae CN');
+  fs.mkdirSync(data, { recursive: true });
   fs.mkdirSync(path.join(root, '.config/magpie'), { recursive: true });
   fs.mkdirSync(path.dirname(control), { recursive: true });
   const original = '{\n  "userNote": "retain fixture setting"\n}\n';
@@ -65,13 +72,13 @@ try {
   fs.writeFileSync(path.join(root, '.config/magpie/providers.json'), JSON.stringify({ providers: [{
     id: 'fixture', name: 'Fixture', key: 'fixture-only', chat: `http://127.0.0.1:${fixture.address().port}/v1`, models: ['first', 'second'],
   }] }));
-  await run(['plugin', 'add', repo]);
-  await run(['plugin', 'options', repo, JSON.stringify({ port: bridgePort, skipNativeSync: true })]);
+  await run(['plugin', 'add', plugin]);
+  await run(['plugin', 'options', plugin, JSON.stringify({ port: bridgePort, skipNativeSync: windows })]);
   const listed = await run(['ls']); assert.match(listed.stdout, /Trae/);
   pass('Magpie discovers the official Agent descriptor');
   const libraryRoot = path.join(root, '.config/magpie/library');
   const rule = path.join(root, '.trae-cn/user_rules/magpie.md');
-  const mcp = path.join(env.APPDATA, 'Trae CN/User/mcp.json');
+  const mcp = path.join(data, 'User/mcp.json');
   const skill = path.join(root, '.trae-cn/skills/acceptance-skill/SKILL.md');
   for (const file of [rule, mcp, path.join(libraryRoot, 'skills/acceptance-skill/SKILL.md')]) fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(rule, '# Existing user rule\n');
@@ -83,17 +90,17 @@ try {
   const sharedRule = path.join(root, 'shared-rule.md'); fs.writeFileSync(sharedRule, 'MAGPIE_RULE_E2E');
   await run(['library', 'instructions', 'set', sharedRule]);
   await run(['library', 'instructions', 'agents', 'trae-local']);
-  await run(['library', 'mcp', 'add', 'acceptance-server', 'http://127.0.0.1:9/mcp', 'agents=trae-local']);
+  if (windows) await run(['library', 'mcp', 'add', 'acceptance-server', 'http://127.0.0.1:9/mcp', 'agents=trae-local']);
   await run(['library', 'sync']);
   assert.match(fs.readFileSync(rule, 'utf8'), /MAGPIE_RULE_E2E/);
   assert.match(fs.readFileSync(rule, 'utf8'), /Existing user rule/);
   assert.match(fs.readFileSync(skill, 'utf8'), /MAGPIE_SKILL_E2E/);
   const servers = JSON.parse(fs.readFileSync(mcp));
-  assert.equal(servers.mcpServers['acceptance-server'].url, 'http://127.0.0.1:9/mcp');
+  if (windows) assert.equal(servers.mcpServers['acceptance-server'].url, 'http://127.0.0.1:9/mcp');
   assert.equal(servers.mcpServers.existing.command, 'existing-user-server');
-  pass('Real Magpie Library synchronizes rules, MCP and skills to Trae native paths, preserving user entries');
+  pass(windows ? 'Library synchronizes rules, MCP and skills' : 'Library synchronizes rules and skills');
   await run(['library', 'instructions', 'agents', 'none']);
-  await run(['library', 'mcp', 'agents', 'acceptance-server', 'none']);
+  if (windows) await run(['library', 'mcp', 'agents', 'acceptance-server', 'none']);
   await run(['library', 'skill', 'agents', 'acceptance-skill', 'none']);
   assert.doesNotMatch(fs.readFileSync(rule, 'utf8'), /MAGPIE_RULE_E2E/);
   assert.match(fs.readFileSync(rule, 'utf8'), /Existing user rule/);
@@ -112,6 +119,21 @@ try {
   await until(async () => (await health()).models?.length === 2, 'resident Bun bridge');
   let response = await send(false); assert.equal(response.status, 200); assert.match(await response.text(), /accepted-first/);
   pass('Resident Bun host forwards a request through real Magpie to the local provider');
+  for (const headers of [{ 'x-magpie-session': 'chat-a' }, { 'x-magpie-conversation': 'chat-b' }, { 'x-session-id': 'chat-a' }]) {
+    const reply = await send(false, 'fixture/first', headers);
+    assert.equal(reply.status, 200);
+    await reply.text();
+  }
+  const ledger = path.join(root, '.config/magpie/usage.jsonl');
+  await until(() => {
+    if (!fs.existsSync(ledger)) return false;
+    const rows = fs.readFileSync(ledger, 'utf8').split('\n').slice(0, -1).map(line => JSON.parse(line));
+    const calls = rows.filter(row => row.agent === 'trae-local');
+    return calls.some(row => !row.session) &&
+      calls.filter(row => row.session === 'chat-a').length === 2 &&
+      calls.filter(row => row.session === 'chat-b').length === 1;
+  }, 'distinct and repeated Trae sessions in real Magpie usage');
+  pass('Real Magpie records two separate sessions and an unnamed call under trae-local');
   const unchanged = fs.readFileSync(control, 'utf8');
   response = await send(true, 'fixture/second'); assert.equal(response.status, 200); assert.match(await response.text(), /accepted-second/);
   assert.equal(fs.readFileSync(control, 'utf8'), unchanged);
@@ -133,7 +155,7 @@ try {
   await run(['trae-local', 'provider', 'magpie']);
   await until(async () => (await health()).connected === true, 'reconnect');
   response = await send(false); assert.equal(response.status, 200); await response.text();
-  await run(['plugin', 'off', repo]);
+  await run(['plugin', 'off', plugin]);
   await fetch(`http://127.0.0.1:${gatewayPort}/v1/models`).catch(() => {});
   await until(async () => {
     const s = await health(); return !s.connected;
