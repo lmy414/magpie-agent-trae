@@ -8,7 +8,7 @@ jobs:
   unit:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +17,44 @@ jobs:
           node-version: 24
       - run: npm test
       - run: npm pack --dry-run
+
+  acceptance:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset: magpie-cli-windows-amd64.exe
+            sha256: bb075086a2f261f94df914f1a24e43f16a8d06b8a6684a4ce03f4daaad4a6bdf
+          - os: macos-15
+            asset: magpie-cli-darwin-arm64
+            sha256: b923d160c0226c4a966e8c725ac0049624e4e56d5e318ad4b7880c5e9099639a
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.4
+      - name: Install and exercise the packed plugin with Magpie
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+          EXPECTED_SHA: ${{ matrix.sha256 }}
+        run: |
+          $bin = Join-Path $env:RUNNER_TEMP $env:ASSET
+          Invoke-WebRequest "https://github.com/yetone/magpie/releases/download/v0.1.4735/$env:ASSET" -OutFile $bin -MaximumRetryCount 3
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $bin).Hash -ne $env:EXPECTED_SHA) { throw 'Unexpected Magpie checksum' }
+          if (!$IsWindows) { chmod +x $bin }
+          $stage = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP 'packed-trae')
+          $pack = npm pack --json --pack-destination $stage.FullName | ConvertFrom-Json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          tar -xf (Join-Path $stage.FullName $pack[0].filename) -C $stage.FullName
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:MAGPIE_TEST_PACKAGE = Join-Path $stage.FullName 'package'
+          $env:MAGPIE_BIN = $bin
+          $env:MAGPIE_BUN = (Get-Command bun -CommandType Application | Select-Object -First 1).Source
+          npm run acceptance

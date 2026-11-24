@@ -71,7 +71,26 @@ test('does not forward Trae cloud headers, cookies, forwarding chains or caller 
     'acl-token': 'fixture-cloud', cookie: 'fixture-cookie', 'x-magpie-conversation': 'session-1' } });
   await r.text();
   for (const name of ['x-forwarded-for', 'x-real-ip', 'acl-token', 'cookie']) assert.equal(f.seen[0].headers[name], undefined);
-  assert.equal(f.seen[0].headers['x-magpie-conversation'], 'session-1');
+  assert.equal(f.seen[0].headers['x-magpie-session'], 'session-1');
+  assert.equal(f.seen[0].headers['x-magpie-conversation'], undefined);
+});
+
+test('uses explicit session IDs, isolates identical openings and reports only the header name', async t => {
+  const f = await fixture(t);
+  for (const [headers, expected, source] of [
+    [{ 'x-magpie-session': 'one', 'x-conversation-id': 'different' }, 'one', 'x-magpie-session'],
+    [{ 'x-session-id': 'two' }, 'two', 'x-session-id'],
+    [{ 'x-conversation-id': 'one' }, 'one', 'x-conversation-id'],
+    [{ 'x-session-id': 'x'.repeat(129), 'x-request-id': 'unique-request' }, undefined, null],
+    [{ 'x-session-id': 'not a session' }, undefined, null],
+    [{}, undefined, null],
+  ]) {
+    await (await f.send({}, { headers })).text();
+    assert.equal(f.seen.at(-1).headers['x-magpie-session'], expected);
+    const health = await (await fetch(f.base + '/health')).json();
+    assert.equal(health.lastRequest.sessionHeader, source);
+    assert.equal(health.lastRequest.session, undefined);
+  }
 });
 
 test('relays fragmented SSE tool arguments and usage byte for byte', async t => {

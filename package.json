@@ -1,12 +1,13 @@
 {
   "name": "magpie-agent-trae",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Use Magpie models in Trae CN on Windows, with native catalog synchronization and reversible configuration",
   "type": "module",
   "main": "./index.mjs",
   "files": [
     "trae.agent.js",
     "index.mjs",
+    "installation.mjs",
     "bridge.mjs",
     "cli.mjs",
     "README.md",

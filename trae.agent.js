@@ -6,14 +6,14 @@ export const agent = {
   dir: '$APPDATA/Trae CN',
   config: '~/.config/magpie-trae/connection.json',
   format: 'json',
-  ua: [],
+  ua: ['trae-local'],
   library: {
     instructions: '~/.trae-cn/user_rules/magpie.md',
     mcp: '$APPDATA/Trae CN/User/mcp.json',
     mcpFormat: 'claude',
     skills: '~/.trae-cn/skills',
   },
-  notice: '自动同步模型、图片能力和思考档位；移除或断开时撤回未手动修改的条目。首次安装刷新组件后重启 Trae 一次，之后目录变化自动刷新。',
+  notice: '已验证的 Windows 默认安装支持自动同步。手动接入请运行 magpie-trae setup 和 magpie-trae models。',
 };
 
 export function connect({ gateway, models }) {

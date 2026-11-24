@@ -6,17 +6,31 @@ Use Magpie models and routing groups from Trae CN's own model picker. This is an
 
 ## Compatibility and installation
 
-Supports verified Windows builds of Trae CN 3.4.18 and 3.4.20. The former was tested with Magpie 0.1.3078; the latter with Magpie 0.1.3960. Internal model APIs and native credential encoding are build dependent. Version and SHA-256 guards reject unknown client builds. Other operating systems and Trae international are not supported yet.
+Supports verified Windows builds of Trae CN 3.4.18 and 3.4.20. The former was tested with Magpie 0.1.3078; the latter with Magpie 0.1.3960. Native catalog sync uses these verified builds in the default Windows installation and checks client file hashes before writing.
+
+| Platform | Integration | Coverage |
+| --- | --- | --- |
+| Windows, other installation paths or builds | Manually add a custom model | Installation discovery and the local bridge have fixture coverage |
+| macOS arm64 | Manually add a custom model | CI exercises the package and gateway. TraeWork chat and menu refresh timing need a Mac desktop test |
+| Linux | Portable unit tests | Desktop integration is unverified |
+
+Thanks to **CN-P5** for the multi-drive Windows installation discovery and optional client refresh work in [Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen). These ideas informed this adapter. Set `TRAE_APP` to the resources directory containing `product.json`, or let Windows check the default installation, Program Files and registry App Paths. Set `MAGPIE_TRAE_NO_CLIENT_PATCH=1` and restart Magpie to skip installing the Windows refresh component.
 
 Version 0.3.4 restores model additions after updating Trae to 3.4.20 and adapts the client refresh component to that build. Both native DLLs remain hash guarded. Client entry-point backups are stored separately for each Trae version, so rollback uses the matching original file.
 
 Install and sign in to Trae CN, configure working models in Magpie, then run:
 
 ```sh
-magpie plugin add "github:lmy414/magpie-agent-trae#v0.3.4"
+magpie plugin add "github:lmy414/magpie-agent-trae#main"
 ```
 
-Enable Trae on Magpie's Agents page. Expand the remaining agents if the row is collapsed. Restart Trae once after the refresh component is first installed or reinstalled after a Trae upgrade, then choose a model ending in `· Magpie`. Keep Magpie running and Trae signed in. Install only one of the standalone and community packages.
+Enable Trae on Magpie's Agents page. Expand the remaining agents if the row is collapsed. For Windows native sync, restart Trae once after the refresh component is first installed or reinstalled after a Trae upgrade, then choose a model ending in `· Magpie`. Keep Magpie running and Trae signed in. Install only one of the standalone and community packages.
+
+For manual setup, run `node cli.mjs setup` and `node cli.mjs models` in the source checkout. In Trae's model settings, add an OpenAI Chat Completions custom model with the full URL option, the loopback URL and public bridge token shown by setup, and an ID from models. Remove manually created entries in Trae. On macOS, `magpie trae-local provider magpie` also enables the first connection. Library rules and skills use home-relative paths. Automatic MCP configuration currently covers Windows. Restart Magpie after moving or upgrading Trae. [Trae model settings](https://docs.trae.cn/work_models)
+
+## Sessions and usage
+
+The gateway records calls under `trae-local`. The bridge maps a valid incoming session ID to `X-Magpie-Session`. Calls without an ID count toward usage individually. The bridge does not import old Trae history. Run `node cli.mjs status` after a turn to see the header name in `lastRequest.sessionHeader` or `null` if the call had no supported session header. Magpie manages consent for recording conversation text.
 
 ## Behavior
 

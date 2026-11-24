@@ -63,7 +63,7 @@ function fail(res, status, message) {
 }
 
 export function createBridge({ file = connectionPath(), port = DEFAULT_PORT, maxBodyBytes = 32 * 1024 * 1024,
-  upstreamTimeoutMs = 600000, onRequest = () => {} } = {}) {
+  upstreamTimeoutMs = 600000, onRequest = () => {}, nativeSync = true } = {}) {
   let lastRequest = null;
   let count = 0;
   let rejected = 0, lastRejection = null;
@@ -89,7 +89,7 @@ export function createBridge({ file = connectionPath(), port = DEFAULT_PORT, max
       let c, error;
       try { c = readConnection(file, server.address()?.port ?? port); } catch (e) { error = e.message; }
       json(res, 200, { name: 'magpie-trae', version: VERSION, connected: !!c,
-        sync: syncStatus(path.join(path.dirname(file), 'sync-status.json')),
+        sync: nativeSync ? syncStatus(path.join(path.dirname(file), 'sync-status.json')) : { state: 'manual' },
         models: c?.models.map(m => ({ id: m.id, name: m.name })) ?? [], requests: count, lastRequest,
         received, lastInbound, rejected, lastRejection, ...(error ? { error } : {}) });
       return;
@@ -132,15 +132,21 @@ export function createBridge({ file = connectionPath(), port = DEFAULT_PORT, max
     const encoded = Buffer.from(JSON.stringify(body));
     const started = Date.now();
     const headers = { authorization: `Bearer ${connection.gatewayKey}`, 'content-type': 'application/json',
-      'content-length': encoded.length, 'user-agent': `magpie-trae/${VERSION}`, accept: body.stream ? 'text/event-stream' : 'application/json' };
-    const conversation = req.headers['x-magpie-conversation'];
-    if (typeof conversation === 'string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(conversation)) headers['x-magpie-conversation'] = conversation;
+      'content-length': encoded.length, 'user-agent': `trae-local/${VERSION}`, accept: body.stream ? 'text/event-stream' : 'application/json' };
+    // Magpie stores up to 128 bytes. Reject longer IDs instead of merging prefixes.
+    const sessionHeader = ['x-magpie-session', 'x-magpie-conversation', 'x-session-id',
+      'session_id', 'session-id', 'x-conversation-id'].find(name => {
+      const id = req.headers[name];
+      return typeof id === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(id);
+    });
+    if (sessionHeader) headers['x-magpie-session'] = req.headers[sessionHeader];
     const transport = connection.url.protocol === 'https:' ? https : http;
     let reported = false;
     const report = status => {
       if (reported) return; reported = true;
       lastRequest = { time: new Date().toISOString(), model: body.model, status,
-        stream: !!body.stream, tools: Array.isArray(body.tools) ? body.tools.length : 0,
+        stream: !!body.stream, sessionHeader: sessionHeader ?? null,
+        tools: Array.isArray(body.tools) ? body.tools.length : 0,
         images: body.messages.reduce((n, m) => n + (Array.isArray(m?.content) ? m.content.filter(c => c?.type === 'image_url').length : 0), 0),
         ...(typeof body.reasoning_effort === 'string' ? { reasoningEffort: body.reasoning_effort.slice(0, 24) } : {}),
         durationMs: Date.now() - started };
