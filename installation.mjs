@@ -21,20 +21,23 @@ export function installation({ platform = process.platform, env = process.env, h
   const manual = { mode: 'manual', platform };
   const standard = platform === 'win32' && env.LOCALAPPDATA
     ? path.resolve(env.LOCALAPPDATA, 'Programs/Trae CN/resources/app') : undefined;
+  const macCandidates = [path.join(home, 'Applications/Trae CN.app/Contents/Resources/app'), '/Applications/Trae CN.app/Contents/Resources/app'];
   const candidates = platform === 'darwin'
-    ? [path.join(home, 'Applications/Trae CN.app/Contents/Resources/app'), '/Applications/Trae CN.app/Contents/Resources/app']
+    ? macCandidates
     : [standard, env.ProgramFiles && path.join(env.ProgramFiles, 'Trae CN/resources/app')];
   function inspect(app) {
     if (!app || !path.isAbsolute(app)) return;
     try {
       const { appVersion } = JSON.parse(fs.readFileSync(path.join(app, 'product.json'), 'utf8'));
       if (typeof appVersion !== 'string' || !appVersion) return;
-      const mode = standard && path.relative(standard, app) === '' && ['3.4.18', '3.4.20'].includes(appVersion)
-        ? 'native' : 'manual';
-      return { platform, mode, app: path.resolve(app), version: appVersion };
+      const native = platform === 'darwin'
+        ? appVersion === '3.4.20' && macCandidates.some(candidate => path.relative(candidate, app) === '')
+        : standard && path.relative(standard, app) === '' && ['3.4.18', '3.4.20', '3.4.24'].includes(appVersion);
+      return { platform, mode: native ? 'native' : 'manual', app: path.resolve(app), version: appVersion };
     } catch { /* An installation may have been moved or removed. */ }
   }
-  if (env.TRAE_APP) return inspect(env.TRAE_APP) ?? manual;
+  const override = env.TRAE_APP || (platform === 'darwin' && env.TRAE_CN_APP_ROOT);
+  if (override) return inspect(override) ?? manual;
   for (const candidate of candidates) {
     const found = inspect(candidate);
     if (found) return found;

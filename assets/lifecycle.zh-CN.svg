@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1250" viewBox="0 0 1440 1250" role="img" aria-labelledby="title desc"><title id="title">模型同步、恢复与客户端修改</title><desc id="desc">模型移除和断开时按日志恢复。客户端热刷新会自动安装入口补丁；取消卡死补丁是单独的手动修复。</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#087F78" stroke-width="1.6"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1250" viewBox="0 0 1440 1250" role="img" aria-labelledby="title desc"><title id="title">模型同步、目录读取与断开恢复</title><desc id="desc">插件写入 Trae 账户模型目录。重新打开模型菜单、切换项目或重启后，Trae 会读取目录。移除模型或断开时，插件按日志撤回变更。</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#087F78" stroke-width="1.6"/></marker></defs>
 <rect x="0" y="0" width="1440" height="1250" rx="0" fill="#F5F8FC" stroke="none"/>
 <text x="64" y="48" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="17" font-weight="700">MAGPIE / TRAE CN</text>
-<text x="64" y="100" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="38" font-weight="700" data-max-width="1030">模型变化后，插件怎样收尾</text>
-<text x="64" y="137" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="1300">从同步配置到撤回模型，再到两个客户端修改点。</text>
+<text x="64" y="100" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="38" font-weight="700" data-max-width="1030">模型变化后，插件和 Trae 各做什么</text>
+<text x="64" y="137" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="1300">插件同步模型目录，Trae 按自己的读取时机显示目录。断开时，插件按日志撤回变更。</text>
 <rect x="1000" y="24" width="376" height="30" rx="15" fill="#EDF4FF" stroke="none"/>
-<text x="1012" y="45" fill="#2864B4" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="352">v0.3.3 · Windows · Trae CN 3.4.18</text>
+<text x="1012" y="45" fill="#2864B4" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="352">v0.4.0 · Windows / macOS</text>
 <rect x="48" y="166" width="1344" height="422" rx="22" fill="#FFFFFF" stroke="#DCE5EF"/>
 <text x="80" y="209" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="700">01</text>
 <text x="122" y="209" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="25" font-weight="600">模型同步与断开恢复</text>
 <rect x="84" y="234" width="1272" height="64" rx="12" fill="#F5F8FC" stroke="none"/>
-<text x="108" y="261" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="21" font-weight="400" data-max-width="1224">每 5 秒检查 connection.json；配置未变时，每 60 秒重新核对原生目录。</text>
+<text x="108" y="261" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="21" font-weight="400" data-max-width="1224">每 5 秒检查 connection.json。配置未变时，每 60 秒重新核对账户模型目录。</text>
 <text x="108" y="286" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400">新增、更新和删除均先写恢复日志，随后调用接口并回读确认结果。</text>
 <rect x="84" y="320" width="1272" height="50" rx="12" fill="#EAF8F4" stroke="none"/>
 <text x="108" y="353" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="21" font-weight="600" data-max-width="1224">模型被移除 / 断开接入 → 查 managed-models.json → 比对最后写入的配置指纹</text>
@@ -34,34 +34,34 @@
 <text x="1015" y="453" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="23" font-weight="600" data-max-width="320">用户在 Trae 中改过</text>
 <text x="984" y="488" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="400" data-max-width="348">保留用户修改，并记录警告</text>
 <text x="984" y="515" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="400" data-max-width="348">model_edited_in_trae</text>
-<text x="84" y="574" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400">账号变化时停止使用旧日志；请求响应丢失时，先查原生目录，再决定是否重试。</text>
+<text x="84" y="574" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400">账号变化时停止使用旧日志。请求响应丢失时，先查账户模型目录，再决定是否重试。</text>
 <rect x="48" y="614" width="1344" height="370" rx="22" fill="#FFFFFF" stroke="#DCE5EF"/>
 <text x="80" y="657" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="700">02</text>
-<text x="122" y="657" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="25" font-weight="600">两处客户端修改，分别恢复</text>
+<text x="122" y="657" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="25" font-weight="600">目录写入与读取时机</text>
 <rect x="84" y="686" width="618" height="244" rx="14" fill="#EAF8F4" stroke="none"/>
-<text x="108" y="722" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="24" font-weight="600">模型菜单热更新</text>
+<text x="108" y="722" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="24" font-weight="600">同步模型目录</text>
 <rect x="492" y="697" width="186" height="30" rx="15" fill="#EAF8F4" stroke="none"/>
-<text x="504" y="718" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="162">随插件启动安装</text>
-<text x="108" y="758" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600">client-refresh.mjs</text>
-<text x="108" y="790" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">校验版本与哈希，备份 out/main.js。</text>
-<text x="108" y="821" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">追加加载语句，由主进程发送原生模型变更通知。</text>
-<text x="108" y="852" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">断开接入会撤回模型；入口补丁需单独恢复。</text>
-<text x="108" y="899" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600" data-max-width="570">恢复命令：node cli.mjs restore-client</text>
+<text x="504" y="718" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="162">插件写入</text>
+<text x="108" y="758" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600">Trae 账户模型目录</text>
+<text x="108" y="790" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">检查 Magpie 所选模型是否有变化。</text>
+<text x="108" y="821" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">通过 Trae 账户接口写入模型变更。</text>
+<text x="108" y="852" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">回读目录，确认写入结果。</text>
+<text x="108" y="899" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600" data-max-width="570">同步状态见 sync-status.json</text>
 <rect x="738" y="686" width="618" height="244" rx="14" fill="#FFF5E7" stroke="none"/>
-<text x="762" y="722" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="24" font-weight="600">取消卡死兼容修复</text>
+<text x="762" y="722" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="24" font-weight="600">读取最新目录</text>
 <rect x="1166" y="697" width="166" height="30" rx="15" fill="#FFF5E7" stroke="none"/>
-<text x="1178" y="718" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="142">可选 / 手动执行</text>
-<text x="762" y="758" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600">scripts/trae-cancel-patch.mjs</text>
-<text x="762" y="790" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">校验并备份 solo-lite 的指定程序文件。</text>
-<text x="762" y="821" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">忽略旧订阅延迟状态；取消确认后核对后端终态。</text>
-<text x="762" y="852" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">源码提供此脚本；运行安装包不包含它。</text>
-<text x="762" y="899" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600" data-max-width="570">同一脚本支持 --check / --apply / --restore</text>
-<text x="84" y="966" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400">两个补丁均绑定已核验构建；恢复客户端文件后需要重启 Trae。</text>
+<text x="1178" y="718" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="16" font-weight="600" data-max-width="142">Trae 读取</text>
+<text x="762" y="758" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600">Trae 模型菜单</text>
+<text x="762" y="790" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">关闭并重新打开模型菜单。</text>
+<text x="762" y="821" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">切换项目或重启 Trae 也会重新读取目录。</text>
+<text x="762" y="852" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="570">同步完成后，重新读取的目录才包含本次变更。</text>
+<text x="762" y="899" fill="#9A5A12" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="19" font-weight="600" data-max-width="570">已打开的模型菜单保持原样</text>
+<text x="84" y="966" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400">Windows 和 macOS 的模型菜单行为相同。</text>
 <rect x="48" y="1010" width="1344" height="180" rx="22" fill="#FFFFFF" stroke="#DCE5EF"/>
 <text x="80" y="1053" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="700">03</text>
 <text x="122" y="1053" fill="#172B45" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="25" font-weight="600">此前 invalid ak 的关键修复</text>
 <text x="84" y="1092" fill="#087F78" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="23" font-weight="600" data-max-width="1272">AK 和空 SK 都按 Trae 原生 AES-256-GCM 格式编码。</text>
-<text x="84" y="1127" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="1272">模型管理接口接受明文空 SK，但实际聊天会拒绝；空 SK 在 API 写入边界统一编码。</text>
-<text x="84" y="1160" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400" data-max-width="1272">对应代码：trae-api.mjs · call()；trae-local-token.mjs · readNativeCredentialProfile() / encodeCredential()</text>
-<text x="64" y="1224" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="17" font-weight="400">源码基线：7cea0df · 取消补丁已有源码回归验证，完整手动取消验收仍待补充。</text>
+<text x="84" y="1127" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="20" font-weight="400" data-max-width="1272">模型管理接口接受明文空 SK，实际聊天会拒绝。插件在调用写入接口前编码空 SK。</text>
+<text x="84" y="1160" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" font-weight="400" data-max-width="1272">对应代码：trae-api.mjs 的 call() 和 trae-local-token.mjs 的 encodeCredential()</text>
+<text x="64" y="1224" fill="#536780" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="17" font-weight="400">适用于支持自动同步的 Trae CN 标准安装。</text>
 </svg>
