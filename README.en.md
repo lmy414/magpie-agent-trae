@@ -6,10 +6,15 @@ Use Magpie models and routing groups from Trae CN's own model picker. This is an
 
 ## Compatibility and installation
 
+**On Windows, this adapter cannot automatically sync custom models to Trae CN 3.4.24.** Adding, editing or removing a model in Magpie leaves Trae’s native model picker unchanged. Make the corresponding change in Trae under **Settings → Models**. An existing entry can still be used for chat while its model is available in Magpie.
+
+We would like Trae to provide official CLI commands to list, add, edit and remove custom models. The adapter could then update the catalog in the background using the current sign-in.
+
 Supports verified Windows builds of Trae CN 3.4.18 and 3.4.20. The former was tested with Magpie 0.1.3078; the latter with Magpie 0.1.3960. Native catalog sync uses these verified builds in the default Windows installation and checks client file hashes before writing.
 
 | Platform | Integration | Coverage |
 | --- | --- | --- |
+| Windows, Trae CN 3.4.24 | Manage custom models manually | Chat verified on Windows with an existing entry |
 | Windows, other installation paths or builds | Manually add a custom model | Installation discovery and the local bridge have fixture coverage |
 | macOS arm64 | Manually add a custom model | CI exercises the package and gateway. TraeWork chat and menu refresh timing need a Mac desktop test |
 | Linux | Portable unit tests | Desktop integration is unverified |
@@ -34,7 +39,7 @@ The gateway records calls under `trae-local`. The bridge maps a valid incoming s
 
 ## Behavior
 
-- Synchronizes catalog additions, capability changes and removals. Model selection stays in Trae.
+- On builds with native sync, the adapter synchronizes catalog additions, capability changes and removals. Model selection stays in Trae.
 - Preserves streaming, images, tool calls and reasoning parameters through a loopback bridge.
 - Deletes unmodified entries it created when removed or disconnected; restores entries it adopted. Manual changes are preserved and reported.
 - Journals writes and verifies the native catalog before confirming success, including recovery after lost responses.
@@ -50,7 +55,9 @@ TraeWork session orchestration still runs in Trae's cloud. Model requests reach 
 
 For open-window updates, the adapter backs up Trae's `out/main.js`, appends a loader and installs `out/magpie-model-refresh.cjs`. The component watches a credential-free catalog revision and emits Trae's existing model-management notification. It does not select models, focus windows, edit prompts or open a debugger port. Unknown builds are left unchanged.
 
-Disconnect the Agent and wait for `disconnected` before uninstalling. Keep the recovery journal until restoration completes. User-edited entries are left intact with `model_edited_in_trae`.
+For manual setup, disconnect the Agent and remove any unwanted entries under **Settings → Models** in Trae before uninstalling.
+
+For native sync, disconnect the Agent and wait for `disconnected` before uninstalling. Keep the recovery journal until restoration completes. User-edited entries are left intact with `model_edited_in_trae`.
 
 After uninstalling, restore the separate refresh component from the source checkout with `node cli.mjs restore-client`, then restart Trae. Journals and backups are under `%USERPROFILE%\.config\magpie-trae`. Never upload that directory: some files contain credentials.
 
