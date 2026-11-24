@@ -1,7 +1,7 @@
 {
   "name": "magpie-agent-trae",
-  "version": "0.3.5",
-  "description": "Use Magpie models in Trae CN on Windows and macOS, with native catalog synchronization and reversible configuration",
+  "version": "0.4.0",
+  "description": "Use Magpie models in Trae CN with native model synchronization on supported Windows and macOS installations",
   "type": "module",
   "main": "./index.mjs",
   "files": [
@@ -19,8 +19,7 @@
     "trae-paths.mjs",
     "trae-local-token.mjs",
     "restore.mjs",
-    "client-refresh.mjs",
-    "trae-refresh-notifier.cjs",
+    "legacy-client-refresh.mjs",
     "vendor",
     "THIRD_PARTY.md",
     "README.en.md"

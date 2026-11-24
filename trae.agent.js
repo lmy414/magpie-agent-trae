@@ -3,7 +3,7 @@ export const agent = {
   id: 'trae-local',
   name: 'Trae',
   icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzI0RERBMyI+PHRpdGxlPlRSQUU8L3RpdGxlPjxwYXRoIGQ9Ik0yNCAyMC41NDFIMy40Mjh2LTMuNDI2SDBWMy40aDI0VjIwLjU0ek0zLjQyOCAxNy4xMTVoMTcuMTQ0VjYuODI3SDMuNDI4djEwLjI4OHptOC41NzMtNS4xOTZsLTIuNDI1IDIuNDI0LTIuNDI0LTIuNDI0IDIuNDI0LTIuNDI0IDIuNDI1IDIuNDI0em02Ljg1Ny0uMDAxbC0yLjQyNCAyLjQyMy0yLjQyNS0yLjQyMyAyLjQyNS0yLjQyNSAyLjQyNCAyLjQyNXoiLz48L3N2Zz4K",
-  dir: '$APPDATA/Trae CN',
+  dir: '~/.trae-cn',
   config: '~/.config/magpie-trae/connection.json',
   format: 'json',
   ua: ['trae-local'],
@@ -13,7 +13,7 @@ export const agent = {
     mcpFormat: 'claude',
     skills: '~/.trae-cn/skills',
   },
-  notice: '已验证的 Windows 默认安装支持自动同步。手动接入请运行 magpie-trae setup 和 magpie-trae models。',
+  notice: '已验证的 Windows 和 macOS 标准安装支持自动同步。添加或移除模型后，请重新打开模型菜单、切换项目或重启 Trae。手动接入请运行 magpie-trae setup 和 magpie-trae models。',
 };
 
 export function connect({ gateway, models }) {

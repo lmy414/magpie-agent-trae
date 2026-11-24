@@ -3,30 +3,13 @@ import { installation } from './installation.mjs';
 import { startModelSync } from './sync.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { installClientRefresh } from './client-refresh.mjs';
 
 const instance = Symbol.for('magpie.trae.local.bridge.v1');
-
-/**
- * wantsClientRefresh says whether the catalog-refresh loader goes into the Trae
- * client. macOS's out/main.js is inside the Developer ID seal, so appending a
- * loader makes codesign report "a sealed resource is missing or invalid"; Trae
- * already refreshes the catalog when the model menu opens, so the loader is
- * installed on Windows only and macOS refreshes itself.
- * A Windows user can also disable the component.
- */
-export function wantsClientRefresh(options = {}) {
-  return process.platform === 'win32' && options.installClientRefresh !== false;
-}
 
 export default async function TraeLocalBridge(_input, options = {}) {
   if (!globalThis[instance]) {
     const port = options.port ?? 3498;
     const nativeSync = !options.skipNativeSync && installation().mode === 'native';
-    if (nativeSync && wantsClientRefresh(options) && process.env.MAGPIE_TRAE_NO_CLIENT_PATCH !== '1') {
-      try { installClientRefresh(); }
-      catch (e) { console.error(`Trae client refresh: ${/^[a-z_0-9]+$/.test(e.message) ? e.message : 'trae_client_refresh_install_failed'}`); }
-    }
     const host = startHost({ port, nativeSync });
     const sync = nativeSync ? startModelSync({ port }) : null;
     globalThis[instance] = { host, sync };

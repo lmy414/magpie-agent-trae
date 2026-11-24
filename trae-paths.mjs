@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import { installation } from './installation.mjs';
 
 // Trae CN keeps its install, its user data and its native modules in different
 // places on Windows and macOS. They are resolved once here so no caller has to
@@ -9,9 +10,10 @@ import path from 'node:path';
 // app names .../resources/app directly, for a test or a non-standard install.
 export function resolveTraeLayout({ platform, home = os.homedir(), roaming, local, app: appOverride } = {}) {
   const target = platform || (local ? 'win32' : process.platform);
-  // macOS: the app is in /Applications, the user data in ~/Library/Application Support.
+  // macOS: discover the app in either Applications folder; user data is under ~/Library/Application Support.
   if (target === 'darwin') {
-    const app = appOverride || process.env.TRAE_CN_APP_ROOT || '/Applications/Trae CN.app/Contents/Resources/app';
+    const app = appOverride || process.env.TRAE_APP || process.env.TRAE_CN_APP_ROOT ||
+      installation({ platform: target, home }).app || '/Applications/Trae CN.app/Contents/Resources/app';
     const userData = path.join(home, 'Library/Application Support/Trae CN');
     const modules = path.join(app, 'modules/ai-agent');
     return {

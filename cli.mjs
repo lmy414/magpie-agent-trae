@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createBridge, DEFAULT_PORT, LOCAL_TOKEN } from './bridge.mjs';
-import { installClientRefresh } from './client-refresh.mjs';
+import { restoreLegacyClientRefresh } from './legacy-client-refresh.mjs';
 import { installation } from './installation.mjs';
 
 const command = process.argv[2] || 'status';
@@ -9,10 +9,10 @@ if (command === 'setup') {
   const client = installation();
   console.log(`平台 ${client.platform}，客户端版本 ${client.version ?? '未知'}，默认模式 ${client.mode}。`);
   console.log('在 Magpie 的 Agent 页面打开 Trae 接入，运行 models 查看可选模型 ID。');
-  if (client.mode === 'native') console.log('自动同步后，在 Trae 的模型菜单选择带“· Magpie”的模型。Windows 首次安装刷新组件后需重启 Trae。');
+  if (client.mode === 'native') console.log('添加或移除模型后，请重新打开模型菜单、切换项目或重启 Trae。自动同步的模型带有“· Magpie”后缀。');
   console.log(`手动接入时，在 Trae 添加 OpenAI Chat Completions 自定义模型，打开完整 URL，填写 http://127.0.0.1:${port}/v1/chat/completions、models 中的模型 ID 和以下本机桥接标记。\n${LOCAL_TOKEN}`);
 } else if (command === 'restore-client') {
-  const result = process.platform === 'win32' ? installClientRefresh({ restore: true }) : { state: 'not_needed', platform: process.platform };
+  const result = restoreLegacyClientRefresh();
   console.log(JSON.stringify(result, null, 2));
 } else if (command === 'serve') {
   const bridge = createBridge({ port, nativeSync: false });

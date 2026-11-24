@@ -95,16 +95,27 @@ export async function syncModels({ paths = syncPaths(), apiFactory = () => new T
     if (state && state.account !== api.session.account) throw new Error('trae_account_changed');
     const origin = api.session.origin || ORIGIN;
     const tenant = api.session.tenant || '';
+    const unrecordedOrigin = state && state.origin == null;
+    const unrecordedTenant = state && state.tenant == null;
+    const originChanged = state && (state.origin || ORIGIN) !== origin;
     if (state) {
       if (![1, 2].includes(state.version)) throw new Error('sync_state_version_unknown');
-      const sameScope = (state.origin || ORIGIN) === origin && (state.tenant || '') === tenant;
-      if (!sameScope && (state.pending || Object.keys(state.entries).length)) {
+      const scopeChanged = (!unrecordedOrigin && originChanged) || (!unrecordedTenant && state.tenant !== tenant);
+      if (scopeChanged && (state.pending || Object.keys(state.entries).length)) {
         // Return to the recorded scope to withdraw its entries and verify them first.
         throw new Error('trae_journal_scope_changed');
       }
     }
     let remote = await api.list();
     state ||= { version: 2, account: api.session.account, entries: {}, pending: null };
+    if (unrecordedOrigin && originChanged) {
+      // Main-era journals assumed the default origin. Do not replay pending work across origins.
+      state.pending = null;
+      const remoteIDs = new Set(remote.map(e => e.id));
+      for (const [model, managed] of Object.entries(state.entries)) {
+        if (!remoteIDs.has(managed.id)) delete state.entries[model];
+      }
+    }
     state.origin = origin;
     state.tenant = tenant;
     if (!state.pending) {
@@ -113,8 +124,9 @@ export async function syncModels({ paths = syncPaths(), apiFactory = () => new T
         if (entry && managed.last === legacyFingerprint(entry)) managed.last = fingerprint(entry);
       }
       state.version = 2;
-      write(paths.state, state);
     }
+    if (!state.pending || unrecordedOrigin || unrecordedTenant) write(paths.state, state);
+    if (unrecordedOrigin && originChanged) console.log('Trae model sync: migrated journal from an unrecorded scope');
     const endpoint = `http://127.0.0.1:${port}/v1/chat/completions`;
     const ak = connected ? await credentialFactory(paths.credential) : undefined;
     const desired = connected ? control.models.map(m => modelRequest(m, endpoint, ak)) : [];
@@ -227,7 +239,7 @@ export async function syncModels({ paths = syncPaths(), apiFactory = () => new T
       }
       delete state.entries[model]; state.pending = null; save();
     }
-    // A credential-free revision lets the open client invalidate its own cache.
+    // Keep the catalog revision available in bridge status without exposing credentials.
     const revision = createHash('sha256').update(JSON.stringify(remote.map(e => [e.id, fingerprint(e)]).sort())).digest('hex');
     const result = { state: connected ? 'synced' : 'disconnected', models: desired.length, warnings, revision, updatedAt: new Date().toISOString() };
     write(paths.status, result);

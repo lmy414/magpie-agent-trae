@@ -179,7 +179,7 @@ test('a no-op delete response never clears the journal or reports successful rem
   assert.equal(f.state().pending.kind, 'delete'); assert.equal(f.api.entries.length, 2);
 });
 
-test('refresh revision is stable without changes and changes after catalog removal', async t => {
+test('catalog revision is stable without changes and changes after catalog removal', async t => {
   const f = setup(t); const first = await f.sync(), repeated = await f.sync();
   assert.match(first.revision, /^[a-f0-9]{64}$/); assert.equal(first.revision, repeated.revision);
   f.write([models[0]]); const removed = await f.sync(); assert.notEqual(removed.revision, first.revision);
@@ -328,6 +328,65 @@ test('session reads use the real client shape and reject expired or ambiguous id
   assert.throws(() => readSession({ roaming, local }), /trae_device_unavailable/);
 });
 
+test('an enterprise journal without a recorded tenant adopts it without rewriting models', async t => {
+  const f = setup(t);
+  const scope = { origin: 'https://enterprise.trae.cn', tenant: 'fixture-tenant' };
+  Object.assign(f.api.session, scope);
+  await f.sync();
+  const state = f.state(), writes = f.api.writes.length;
+  delete state.tenant;
+  fs.writeFileSync(f.paths.state, JSON.stringify(state));
+
+  const result = await f.sync();
+  assert.equal(result.state, 'synced');
+  assert.deepEqual(result.warnings, []);
+  assert.deepEqual(f.state(), { ...state, ...scope });
+  assert.equal(f.api.writes.length, writes);
+  await f.sync();
+  assert.deepEqual(f.state(), { ...state, ...scope });
+  assert.equal(f.api.writes.length, writes);
+});
+
+test('an unrecorded origin adopts the enterprise scope and drops only stale native IDs', async t => {
+  const f = setup(t);
+  await f.sync();
+  const state = f.state(), writes = f.api.writes.length;
+  const stale = f.api.entries.pop();
+  delete state.origin;
+  delete state.tenant;
+  state.pending = { kind: 'update', model: stale.model, before: stale, body: { id: Number(stale.id) } };
+  fs.writeFileSync(f.paths.state, JSON.stringify(state));
+  const scope = { origin: 'https://enterprise.trae.cn', tenant: 'fixture-tenant' };
+  Object.assign(f.api.session, scope);
+
+  const result = await f.sync(), migrated = f.state();
+  assert.equal(result.state, 'synced');
+  assert.deepEqual(result.warnings, []);
+  assert.equal(migrated.origin, scope.origin);
+  assert.equal(migrated.tenant, scope.tenant);
+  assert.equal(migrated.pending, null);
+  assert.deepEqual(migrated.entries[models[0].id], state.entries[models[0].id]);
+  assert.notEqual(migrated.entries[stale.model].id, stale.id);
+  assert.deepEqual(f.api.writes.slice(writes).map(write => write.method), ['add_custom_model']);
+});
+
+test('an unrecorded tenant is persisted after list even when replay of pending work fails', async t => {
+  const f = setup(t);
+  const scope = { origin: 'https://enterprise.trae.cn', tenant: 'fixture-tenant' };
+  Object.assign(f.api.session, scope);
+  await f.sync();
+  f.write([{ ...models[0], context: 256000 }, models[1]]);
+  f.api.failAfter = 'update_custom_model';
+  await assert.rejects(f.sync(), /lost_response/);
+  const state = f.state();
+  state.tenant = null;
+  fs.writeFileSync(f.paths.state, JSON.stringify(state));
+  f.api.call = async () => { throw new Error('offline'); };
+
+  await assert.rejects(f.sync(), /offline/);
+  assert.deepEqual(f.state(), { ...state, ...scope });
+});
+
 test('scope changes preserve the journal until the original scope finishes withdrawal', async t => {
   const f = setup(t);
   await f.sync();
@@ -348,4 +407,19 @@ test('scope changes preserve the journal until the original scope finishes withd
   f.write();
   await f.sync();
   assert.equal(f.state().tenant, 'next');
+});
+
+test('a recorded tenant change is rejected even when the journal has only pending work', async t => {
+  const f = setup(t);
+  Object.assign(f.api.session, { origin: 'https://enterprise.trae.cn', tenant: 'fixture-tenant' });
+  f.api.failAfter = 'add_custom_model';
+  await assert.rejects(f.sync(), /lost_response/);
+  const state = f.state(), writes = f.api.writes.length;
+  assert.deepEqual(state.entries, {});
+  assert.equal(state.pending.kind, 'add');
+  f.api.session.tenant = 'other';
+
+  await assert.rejects(f.sync(), /trae_journal_scope_changed/);
+  assert.deepEqual(f.state(), state);
+  assert.equal(f.api.writes.length, writes);
 });
