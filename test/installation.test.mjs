@@ -13,7 +13,7 @@ test('selects native integration only for verified Windows versions at the stand
   fs.mkdirSync(app, { recursive: true });
   const setVersion = appVersion => fs.writeFileSync(path.join(app, 'product.json'), JSON.stringify({ appVersion }));
   const win = { platform: 'win32', env: { LOCALAPPDATA: root }, registry: () => undefined };
-  for (const version of ['3.4.18', '3.4.20', '3.4.24']) {
+  for (const version of ['3.4.18', '3.4.20', '3.4.24', '3.4.25']) {
     setVersion(version);
     assert.deepEqual(installation(win), { platform: 'win32', app, version, mode: 'native' });
   }
@@ -53,6 +53,8 @@ test('macOS selects native integration for a standard 3.4.20 install and manual 
 
   setVersion(app, '3.4.24');
   assert.deepEqual(installation(mac), { ...native, version: '3.4.24', mode: 'manual' });
+  setVersion(app, '3.4.25');
+  assert.deepEqual(installation(mac), { ...native, version: '3.4.25', mode: 'manual' });
   const moved = path.join(home, 'Moved/Trae CN.app/Contents/Resources/app');
   setVersion(moved, '3.4.20');
   assert.deepEqual(installation({ ...mac, env: { TRAE_APP: moved } }), { ...native, app: moved, mode: 'manual' });

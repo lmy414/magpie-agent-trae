@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-Use Magpie models and routing groups from Trae CN’s model picker. Automatically synced entries end in `· Magpie`. This guide covers plugin version 0.4.0.
+Use Magpie models and routing groups from Trae CN’s model picker. Automatically synced entries end in `· Magpie`. The compatibility table describes the `main` branch.
 
 ## Compatibility
 
@@ -13,8 +13,9 @@ Native sync requires a verified Trae CN build and a standard installation path. 
 | Windows 3.4.18 | Native sync on standard installs | Catalog sync and DeepSeek chat were verified in 0.3.x. |
 | Windows 3.4.20 | Native sync on standard installs | Model creation, updates, deletion, and readback were verified in 0.3.x. |
 | Windows 3.4.24 | Native sync on standard installs | In 0.4.0, credentials and the sign-in session were verified. A temporary model was added, listed, and deleted using a real account, and the test entry was cleaned up. |
+| Windows 3.4.25 (build 2.3.108162) | Native sync on standard installs | Verified background sync and Trae account catalog readback for four existing models. |
 | macOS 3.4.20 | Native sync on standard installs | The reviewer verified model addition and removal, confirmed that client files were unchanged, and verified that the application’s code signature remained valid. |
-| macOS 3.4.24 and other unlisted versions or builds | Manual setup | Native sync is unverified. |
+| Other versions or builds (including macOS 3.4.24 and 3.4.25) | Manual setup | Native sync is unverified. |
 | Linux | Desktop integration is unverified | CI runs portable unit tests. |
 
 The standard Windows path is `%LOCALAPPDATA%\Programs\Trae CN`. On macOS, the standard locations are `/Applications/Trae CN.app` and `~/Applications/Trae CN.app`. Set `TRAE_APP` to the resources directory containing `product.json` if you need to point the plugin to a specific installation. Custom paths use manual mode. Thanks to CN-P5 for sharing the Windows multi-drive discovery approach in [Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen).
@@ -28,6 +29,8 @@ magpie plugin add "github:lmy414/magpie-agent-trae#v0.4.0"
 ```
 
 You can also download the release source, extract it, and run `magpie plugin add .` from the extracted directory. [Releases](https://github.com/lmy414/magpie-agent-trae/releases)
+
+Windows 3.4.25 (build 2.3.108162) requires the compatibility patch on `main`. Run `magpie plugin add .` from a checkout of `main`.
 
 Enable Trae on Magpie’s Agents page. If Trae is hidden, expand the remaining agents at the bottom of the list. The plugin uses `dir: '~/.trae-cn'` for discovery on Windows and macOS. `~/.trae-cn` is Trae’s cross-platform product data directory.
 

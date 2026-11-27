@@ -32,7 +32,7 @@ export function installation({ platform = process.platform, env = process.env, h
       if (typeof appVersion !== 'string' || !appVersion) return;
       const native = platform === 'darwin'
         ? appVersion === '3.4.20' && macCandidates.some(candidate => path.relative(candidate, app) === '')
-        : standard && path.relative(standard, app) === '' && ['3.4.18', '3.4.20', '3.4.24'].includes(appVersion);
+        : standard && path.relative(standard, app) === '' && ['3.4.18', '3.4.20', '3.4.24', '3.4.25'].includes(appVersion);
       return { platform, mode: native ? 'native' : 'manual', app: path.resolve(app), version: appVersion };
     } catch { /* An installation may have been moved or removed. */ }
   }

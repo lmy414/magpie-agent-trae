@@ -24,6 +24,10 @@ const VERIFIED_BUILDS = {
     harness: '1d5897c2d6ca88c9a7968f49d91af73b41b38812f4f2fd7f31e7d1d64a1b58ce',
     legacy: '72c7c2f463bf0bd76550b0e2cfe61e63de90959a5ab740b99d97d1dfe8b6d24c',
   },
+  '3.4.25': {
+    harness: 'a9e4a782ecea6491dc3c5bbf4e039dc8de41bc72d8633fa07b8c1cacec5a6860',
+    legacy: '403facd565f94bcba2db505e6527dbfb243f02fc524fcf3cb1d1b232d00245a8',
+  },
   '3.4.20-darwin': {
     harness: '5fb006899278fc9541f1df966762372b413d5b799dab55cdb0dd89e535bfdb37',
     legacy: 'e819bda4c750dd4d42127ba853e8a2902f18159a876ce67daaab8c8834abbb67',
