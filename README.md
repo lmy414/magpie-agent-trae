@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-在 Trae CN 的模型菜单中使用 Magpie 配置的模型和路由组。自动同步的条目带有“· Magpie”后缀。兼容性表以 `main` 分支为准。
+在 Trae CN 的模型菜单中使用 Magpie 配置的模型和路由组。自动同步的条目带有“· Magpie”后缀。本文适用于插件 0.4.1。
 
 ## 兼容性
 
@@ -27,12 +27,10 @@ macOS 标准安装为 `/Applications/Trae CN.app` 或 `~/Applications/Trae CN.ap
 先安装并登录 Trae CN，再在 Magpie 配置可用的模型。然后运行以下命令安装插件。
 
 ```sh
-magpie plugin add "github:lmy414/magpie-agent-trae#v0.4.0"
+magpie plugin add "github:lmy414/magpie-agent-trae#v0.4.1"
 ```
 
-也可以下载发布版源码，在解压后的目录运行 `magpie plugin add .`。[Release](https://github.com/lmy414/magpie-agent-trae/releases)
-
-Windows 3.4.25（构建 2.3.108162）需要 `main` 分支上的兼容补丁。在检出 `main` 的源码目录运行 `magpie plugin add .`。
+也可以下载发布页面的 `magpie-agent-trae-0.4.1.tgz`，校验 SHA-256 后解压，在 `package` 目录运行 `magpie plugin add .`。[发布页](https://github.com/lmy414/magpie-agent-trae/releases)
 
 在 Magpie 的 Agent 页面打开 Trae 接入开关。如果列表中看不到 Trae，展开底部的“显示其余”。插件在 Windows 和 macOS 上都使用 `dir: '~/.trae-cn'` 发现 Trae。`~/.trae-cn` 是 Trae 的跨平台产品数据目录。
 
@@ -71,7 +69,7 @@ macOS 上的 `$APPDATA` 为空。`$APPDATA/Trae CN/User/mcp.json` 因此展开�
 
 ## 工作原理
 
-下图展示 0.4.0 的聊天请求、模型目录同步和凭据用途。Trae 在重新打开模型菜单、切换项目或重启时读取同步后的目录。
+下图展示插件的聊天请求、模型目录同步和凭据用途。Trae 在重新打开模型菜单、切换项目或重启时读取同步后的目录。
 
 ![Magpie 与 Trae 的聊天请求、模型目录同步和凭据用途](assets/architecture.zh-CN.svg)
 
@@ -106,7 +104,7 @@ TraeWork 仍由 Trae 云端编排会话。模型请求通过 Trae 原生反向�
 
 ### 旧版客户端清理
 
-0.4.0 运行时不修改 Trae 客户端文件。插件唯一的客户端文件操作是按需执行的 0.3.x 遗留清理。
+插件仅在执行 0.3.x 遗留清理命令时修改 Trae 客户端文件。
 
 旧版 Windows 安装可能在 `out/main.js` 末尾留下加载语句。对于 Windows 标准安装，在源码目录运行 `node cli.mjs restore-client`。命令只移除与旧版完全匹配的加载语句，并删除 `out/magpie-model-refresh.cjs`。在 macOS 上，该命令返回 `not_needed`。
 
@@ -132,11 +130,11 @@ Magpie 将桥接请求记到 `trae-local`。桥接将有效的会话 ID 写入 `
 
 ## 开发与验证
 
-0.4.0 在 Node.js 下通过了 64 项单元测试。运行测试需要 Node.js 20 或更高版本，无需安装 npm 依赖。用 `npm test` 运行测试，用 `npm pack` 检查安装包。
+0.4.1 在 Windows 上通过了 66 项单元测试。运行测试需要 Node.js 20 或更高版本，无需安装 npm 依赖。用 `npm test` 运行测试，用 `npm pack` 检查安装包。
 
 `npm run acceptance` 需要本机的 Magpie 与其 Bun 宿主。脚本使用临时用户目录和本地测试服务，检查 Agent 注册、目录变化、转发和资源库恢复。测试不调用真实模型账户。
 
-0.4.0 尚未解决长会话的 `3003 / SSE finish` 错误。排查中观察到提交工具结果后续接失败，以及 Trae 云端返回 HTTP 500。根因仍未确认。
+长会话的 `3003 / SSE finish` 错误仍在排查。排查中观察到提交工具结果后续接失败，以及 Trae 云端返回 HTTP 500。根因仍未确认。
 
 ## 许可与来源
 

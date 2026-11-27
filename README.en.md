@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-Use Magpie models and routing groups from Trae CN’s model picker. Automatically synced entries end in `· Magpie`. The compatibility table describes the `main` branch.
+Use Magpie models and routing groups from Trae CN’s model picker. Automatically synced entries end in `· Magpie`. This guide covers plugin version 0.4.1.
 
 ## Compatibility
 
@@ -27,12 +27,10 @@ The standard macOS locations are `/Applications/Trae CN.app` and `~/Applications
 Install and sign in to Trae CN, then configure a working model in Magpie. Install the plugin with this command.
 
 ```sh
-magpie plugin add "github:lmy414/magpie-agent-trae#v0.4.0"
+magpie plugin add "github:lmy414/magpie-agent-trae#v0.4.1"
 ```
 
-You can also download the release source, extract it, and run `magpie plugin add .` from the extracted directory. [Releases](https://github.com/lmy414/magpie-agent-trae/releases)
-
-Windows 3.4.25 (build 2.3.108162) requires the compatibility patch on `main`. Run `magpie plugin add .` from a checkout of `main`.
+You can also download `magpie-agent-trae-0.4.1.tgz` from the release page, verify its SHA-256 checksum, and extract it. Run `magpie plugin add .` from the extracted `package` directory. [Releases](https://github.com/lmy414/magpie-agent-trae/releases)
 
 Enable Trae on Magpie’s Agents page. If Trae is hidden, expand the remaining agents at the bottom of the list. The plugin uses `dir: '~/.trae-cn'` for discovery on Windows and macOS. `~/.trae-cn` is Trae’s cross-platform product data directory.
 
@@ -71,7 +69,7 @@ Image support, tool calls, and reasoning depend on the upstream model. The bridg
 
 ## How it works
 
-The diagram shows how 0.4.0 routes chat requests, syncs the catalog, and uses credentials. Trae reads the synced catalog when you reopen the model picker, switch projects, or restart Trae. Diagram labels are in Chinese.
+The diagram shows how the plugin routes chat requests, syncs the catalog, and uses credentials. Trae reads the synced catalog when you reopen the model picker, switch projects, or restart Trae. Diagram labels are in Chinese.
 
 ![Magpie and Trae chat routing, catalog sync, and credential use](assets/architecture.zh-CN.svg)
 
@@ -106,7 +104,7 @@ The plugin records each pending write before calling the API, then verifies it b
 
 ### Legacy client cleanup
 
-Version 0.4.0 leaves Trae client files untouched at runtime. The plugin’s only client-file operation is explicit cleanup of 0.3.x leftovers.
+The plugin modifies Trae client files only when you run the command to clean up 0.3.x leftovers.
 
 Older Windows installs may have a loader appended to `out/main.js`. For a standard Windows install, run `node cli.mjs restore-client` from a source checkout. The command removes the loader suffix only if it exactly matches the old version and deletes `out/magpie-model-refresh.cjs`. On macOS, the command reports `not_needed`.
 
@@ -132,11 +130,11 @@ Connection configuration and recovery journals may contain credentials. For issu
 
 ## Development and validation
 
-Version 0.4.0 passed 64 unit tests on Node.js. Run `npm test` with Node.js 20 or later. No npm dependencies are required. Use `npm pack` to check the package contents.
+Version 0.4.1 passed 66 unit tests on Windows. Run `npm test` with Node.js 20 or later. No npm dependencies are required. Use `npm pack` to check the package contents.
 
 `npm run acceptance` requires a local Magpie installation and its Bun host. The script uses a temporary home and local test servers to check Agent registration, catalog changes, forwarding, and Library restoration. It does not call real model accounts.
 
-The long-session `3003 / SSE finish` error remains open in 0.4.0. Diagnostics observed failed continuation after a tool result was submitted and HTTP 500 responses from Trae’s cloud. The root cause is unconfirmed.
+The long-session `3003 / SSE finish` error remains open. Diagnostics observed failed continuation after a tool result was submitted and HTTP 500 responses from Trae’s cloud. The root cause is unconfirmed.
 
 ## License and sources
 

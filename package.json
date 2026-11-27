@@ -1,6 +1,6 @@
 {
   "name": "magpie-agent-trae",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Use Magpie models in Trae CN with native model synchronization on supported Windows and macOS installations",
   "type": "module",
   "main": "./index.mjs",
