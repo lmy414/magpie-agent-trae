@@ -14,46 +14,37 @@ function regOutput(args) {
   } catch { return ''; }
 }
 
-// Read only public installation metadata. Native integration still verifies the
-// client's DLL profile before its first write (trae-local-token.mjs).
-function registryApp() {
+// Read only installation metadata. The sync process verifies the DLL hashes.
+function* registryCandidates(query) {
   for (const hive of ['HKCU', 'HKLM']) {
     const key = `${hive}\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Trae CN.exe`;
-    const exe = regOutput(['query', key, '/ve']).match(/REG_SZ\s+"?([^"\r\n]+?\.exe)"?\s*$/im)?.[1];
-    if (exe && path.isAbsolute(exe)) return path.join(path.dirname(exe), 'resources/app');
+    const exe = query(['query', key, '/ve']).match(/REG_SZ\s+"?([^"\r\n]+?\.exe)"?\s*$/im)?.[1];
+    if (exe && path.isAbsolute(exe)) yield path.join(path.dirname(exe), 'resources/app');
   }
-}
 
-function appUnder(installLocation) {
-  if (typeof installLocation !== 'string') return;
-  const root = installLocation.trim().replace(/^"|"$/g, '');
-  if (!root || !path.isAbsolute(root)) return;
-  return /resources[\\/]app$/i.test(root) ? root : path.join(root, 'resources/app');
-}
-
-// The per-user installer writes InstallLocation under HKCU. HKLM covers a
-// machine-wide install, and WOW6432Node a 32-bit installer on 64-bit Windows.
-function registryInstall() {
   for (const hive of ['HKCU', 'HKLM']) {
     for (const base of [
       'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
       'Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
     ]) {
-      // /d searches values: a key block holds DisplayName and InstallLocation
-      // together, so only the Trae CN uninstall entry is accepted.
-      const output = regOutput(['query', `${hive}\\${base}`, '/s', '/f', 'TRAE CN', '/d']);
+      // Search results only contain matching values. Read the matched key
+      // separately for paths that need not contain the product name.
+      const output = query(['query', `${hive}\\${base}`, '/s', '/f', 'TRAE CN', '/d']);
       for (const block of output.split(/\r?\n(?=HKEY_)/)) {
-        if (!/DisplayName\s+REG_\w+\s+TRAE CN/i.test(block)) continue;
-        const value = block.match(/(?:InstallLocation|Inno Setup: App Path)\s+REG_\w+\s+"?([^"\r\n]+)"?\s*$/im)?.[1];
-        const app = appUnder(value);
-        if (app) return app;
+        const key = block.match(/^HKEY_[^\r\n]+/m)?.[0];
+        if (!key || !/^[ \t]+DisplayName[ \t]+REG_\w+[ \t]+TRAE CN(?:[ \t]+\([^\r\n]+\))?[ \t]*$/im.test(block)) continue;
+        const values = query(['query', key]);
+        for (const [, value] of values.matchAll(/^[ \t]+(?:InstallLocation|Inno Setup: App Path)[ \t]+REG_\w+[ \t]+([^\r\n]+)$/gim)) {
+          const root = value.trim().replace(/^"|"$/g, '');
+          if (path.isAbsolute(root)) yield /resources[\\/]app$/i.test(root) ? root : path.join(root, 'resources/app');
+        }
       }
     }
   }
 }
 
 export function installation({ platform = process.platform, env = process.env, home = os.homedir(),
-  registry = registryApp, uninstall = registryInstall } = {}) {
+  queryRegistry = regOutput } = {}) {
   const manual = { mode: 'manual', platform };
   const standard = platform === 'win32' && env.LOCALAPPDATA
     ? path.resolve(env.LOCALAPPDATA, 'Programs/Trae CN/resources/app') : undefined;
@@ -69,11 +60,10 @@ export function installation({ platform = process.platform, env = process.env, h
     try {
       const { appVersion } = JSON.parse(fs.readFileSync(path.join(app, 'product.json'), 'utf8'));
       if (typeof appVersion !== 'string' || !appVersion) return;
-      // Any absolute path is acceptable once its version is on the verified list.
-      // The DLL profile is checked again before a model is written.
-      const supported = platform === 'darwin'
-        ? MAC_VERSIONS.includes(appVersion)
-        : WINDOWS_VERSIONS.includes(appVersion);
+      const supported = platform === 'win32'
+        ? WINDOWS_VERSIONS.includes(appVersion)
+        : platform === 'darwin' && MAC_VERSIONS.includes(appVersion) &&
+          macCandidates.some(candidate => path.relative(candidate, app) === '');
       return { platform, mode: supported ? 'native' : 'manual', app: path.resolve(app), version: appVersion };
     } catch { /* An installation may have been moved or removed. */ }
   }
@@ -84,7 +74,7 @@ export function installation({ platform = process.platform, env = process.env, h
     if (found) return found;
   }
   if (platform === 'win32') {
-    for (const candidate of [registry(), uninstall()]) {
+    for (const candidate of registryCandidates(queryRegistry)) {
       const found = inspect(candidate);
       if (found) return found;
     }

@@ -15,7 +15,7 @@ test('selects native integration for verified Windows versions at any absolute p
     fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(directory, 'product.json'), JSON.stringify({ appVersion }));
   };
-  const win = { platform: 'win32', env: { LOCALAPPDATA: root }, registry: () => undefined, uninstall: () => undefined };
+  const win = { platform: 'win32', env: { LOCALAPPDATA: root }, queryRegistry: () => '' };
   for (const version of ['3.4.18', '3.4.20', '3.4.24', '3.4.25']) {
     setVersion(app, version);
     assert.deepEqual(installation(win), { platform: 'win32', app, version, mode: 'native' });
@@ -23,27 +23,41 @@ test('selects native integration for verified Windows versions at any absolute p
   setVersion(app, '3.4.22');
   assert.equal(installation(win).mode, 'manual');
   setVersion(app, '3.4.20');
-  const alternate = { ...win, env: {}, registry: () => app };
+  const alternate = { ...win, env: {}, queryRegistry: args => {
+    assert.equal(args[2], '/ve');
+    return `    (Default)    REG_SZ    ${path.resolve(app, '../..', 'Trae CN.exe')}`;
+  } };
   assert.deepEqual(installation(alternate), { platform: 'win32', app, version: '3.4.20', mode: 'native' });
   assert.equal(installation({ ...alternate, env: { TRAE_APP: path.join(root, 'missing') } }).app, undefined);
   assert.deepEqual(installation({ ...alternate, env: { TRAE_APP: app } }),
     { platform: 'win32', app, version: '3.4.20', mode: 'native' });
+  assert.deepEqual(installation({ ...alternate, platform: 'linux', env: { TRAE_APP: app } }),
+    { platform: 'linux', app, version: '3.4.20', mode: 'manual' });
 });
 
 test('finds a verified Windows install registered outside the standard path', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'trae-custom-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const custom = path.join(root, 'Games/Trae CN/resources/app');
+  const location = path.join(root, 'Apps', 'Editor');
+  const custom = path.join(location, 'resources/app');
   fs.mkdirSync(custom, { recursive: true });
   fs.writeFileSync(path.join(custom, 'product.json'), JSON.stringify({ appVersion: '3.4.25' }));
-  const win = { platform: 'win32', env: { LOCALAPPDATA: path.join(root, 'empty') },
-    registry: () => undefined, uninstall: () => custom };
-  assert.deepEqual(installation(win), { platform: 'win32', app: custom, version: '3.4.25', mode: 'native' });
-  const unsupported = path.join(root, 'Games/Trae CN/resources/app-unsupported');
-  fs.mkdirSync(unsupported, { recursive: true });
-  fs.writeFileSync(path.join(unsupported, 'product.json'), JSON.stringify({ appVersion: '3.4.26' }));
-  assert.deepEqual(installation({ ...win, uninstall: () => unsupported }),
-    { platform: 'win32', app: unsupported, version: '3.4.26', mode: 'manual' });
+  const branch = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall';
+  const key = `HKEY_CURRENT_USER\\${branch}\\test-installer`;
+  const win = { platform: 'win32', env: { LOCALAPPDATA: path.join(root, 'empty') } };
+  const discover = valueName => installation({ ...win, queryRegistry(args) {
+    if (args[2] === '/ve') return '';
+    if (args[2] === '/s') {
+      assert.deepEqual(args, ['query', `HKCU\\${branch}`, '/s', '/f', 'TRAE CN', '/d']);
+      return `\r\n${key}\r\n    DisplayName    REG_SZ    TRAE CN (User)\r\n\r\nEnd of search: 1 match(es) found.\r\n`;
+    }
+    assert.deepEqual(args, ['query', key]);
+    return `\r\n${key}\r\n    ${valueName}    REG_SZ    ${location}${path.sep}\r\n`;
+  } });
+  assert.deepEqual(discover('InstallLocation'), { platform: 'win32', app: custom, version: '3.4.25', mode: 'native' });
+  assert.deepEqual(discover('Inno Setup: App Path'), { platform: 'win32', app: custom, version: '3.4.25', mode: 'native' });
+  fs.writeFileSync(path.join(custom, 'product.json'), JSON.stringify({ appVersion: '3.4.26' }));
+  assert.deepEqual(discover('InstallLocation'), { platform: 'win32', app: custom, version: '3.4.26', mode: 'manual' });
 });
 
 test('macOS selects native integration for a verified 3.4.20 install and manual for other versions', t => {
@@ -78,5 +92,5 @@ test('macOS selects native integration for a verified 3.4.20 install and manual 
   assert.deepEqual(installation(mac), { ...native, version: '3.4.25', mode: 'manual' });
   const moved = path.join(home, 'Moved/Trae CN.app/Contents/Resources/app');
   setVersion(moved, '3.4.20');
-  assert.deepEqual(installation({ ...mac, env: { TRAE_APP: moved } }), { ...native, app: moved, mode: 'native' });
+  assert.deepEqual(installation({ ...mac, env: { TRAE_APP: moved } }), { ...native, app: moved, mode: 'manual' });
 });

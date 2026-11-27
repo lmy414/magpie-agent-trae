@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { syncModels, syncPaths, modelRequest } from '../sync.mjs';
 import { TraeAPI, readSession } from '../trae-api.mjs';
 import { encodeCredential, decodeCredential } from '../trae-local-token.mjs';
@@ -326,6 +328,50 @@ test('session reads use the real client shape and reject expired or ambiguous id
   save(1); assert.throws(() => readSession({ roaming, local }), /trae_sign_in_expired/);
   save(Math.floor(Date.now() / 1000) + 600, { 'iCubeAuthInfo://icube-dc:87654321': 'fixture' });
   assert.throws(() => readSession({ roaming, local }), /trae_device_unavailable/);
+});
+
+test('the exit worker withdraws a model using the custom Windows installation', { skip: process.platform !== 'win32' }, t => {
+  const { root, paths } = setup(t);
+  const local = path.join(root, 'local');
+  const roaming = path.join(root, 'roaming');
+  const app = path.join(root, 'Editor/resources/app');
+  const storage = path.join(roaming, 'Trae CN/User/globalStorage/storage.json');
+  fs.mkdirSync(path.dirname(storage), { recursive: true });
+  fs.mkdirSync(app, { recursive: true });
+  fs.writeFileSync(path.join(app, 'product.json'), '{"appVersion":"3.4.25"}');
+  const claims = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 600 })).toString('base64url');
+  fs.writeFileSync(storage, JSON.stringify({
+    'iCubeAuthInfo://icube.cloudide': JSON.stringify({ token: `e30.${claims}.fixture`, userId: 'fixture-user' }),
+    'iCubeAuthInfo://icube-dc:12345678': 'fixture',
+  }));
+  const { account } = readSession({ local, roaming, app });
+  fs.unlinkSync(paths.control);
+  fs.writeFileSync(paths.state, JSON.stringify({
+    version: 2, account, entries: { 'fixture/one': { id: '100', created: true } }, pending: null,
+  }));
+
+  const preload = `
+    let modelPresent = true;
+    globalThis.fetch = async (url, request) => {
+      if (url.endsWith('/batch_get_detail_param')) {
+        const models = modelPresent ? [{ model_name: 'fixture/one', custom_config: { custom_model_id: 100 } }] : [];
+        return Response.json({ function_configs: [{ config_info_list: [{ model_detail_list: models }] }] });
+      }
+      const body = JSON.parse(request.body);
+      if (!url.endsWith('/update_custom_model') || body.action !== 'delete' || body.id !== 100) {
+        throw new Error('Unexpected model operation');
+      }
+      modelPresent = false;
+      return Response.json({ code: 0 });
+    };
+  `;
+  const restore = fileURLToPath(new URL('../restore.mjs', import.meta.url));
+  execFileSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, restore, '3498', app], {
+    env: { ...process.env, USERPROFILE: root, APPDATA: roaming, LOCALAPPDATA: local },
+    windowsHide: true, timeout: 5000,
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(paths.state, 'utf8')).entries, {});
+  assert.equal(JSON.parse(fs.readFileSync(paths.status, 'utf8')).state, 'disconnected');
 });
 
 test('an enterprise journal without a recorded tenant adopts it without rewriting models', async t => {

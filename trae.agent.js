@@ -13,7 +13,7 @@ export const agent = {
     mcpFormat: 'claude',
     skills: '~/.trae-cn/skills',
   },
-  notice: '已验证的 Windows 和 macOS 安装（含自定义路径）支持自动同步。添加或移除模型后，请重新打开模型菜单、切换项目或重启 Trae。手动接入请运行 magpie-trae setup 和 magpie-trae models。',
+  notice: '已验证的 Windows 安装和 macOS 标准安装支持自动同步。添加或移除模型后，请重新打开模型菜单、切换项目或重启 Trae。手动接入请运行 magpie-trae setup 和 magpie-trae models。',
 };
 
 export function connect({ gateway, models }) {
