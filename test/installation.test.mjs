@@ -6,26 +6,47 @@ import path from 'node:path';
 import { installation } from '../installation.mjs';
 import { resolveTraeLayout } from '../trae-paths.mjs';
 
-test('selects native integration only for verified Windows versions at the standard path', t => {
+test('selects native integration for verified Windows versions at any absolute path', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'trae-layout-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const app = path.join(root, 'Programs/Trae CN/resources/app');
   fs.mkdirSync(app, { recursive: true });
-  const setVersion = appVersion => fs.writeFileSync(path.join(app, 'product.json'), JSON.stringify({ appVersion }));
-  const win = { platform: 'win32', env: { LOCALAPPDATA: root }, registry: () => undefined };
+  const setVersion = (directory, appVersion) => {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, 'product.json'), JSON.stringify({ appVersion }));
+  };
+  const win = { platform: 'win32', env: { LOCALAPPDATA: root }, registry: () => undefined, uninstall: () => undefined };
   for (const version of ['3.4.18', '3.4.20', '3.4.24', '3.4.25']) {
-    setVersion(version);
+    setVersion(app, version);
     assert.deepEqual(installation(win), { platform: 'win32', app, version, mode: 'native' });
   }
-  setVersion('3.4.22');
+  setVersion(app, '3.4.22');
   assert.equal(installation(win).mode, 'manual');
-  setVersion('3.4.20');
+  setVersion(app, '3.4.20');
   const alternate = { ...win, env: {}, registry: () => app };
-  assert.deepEqual(installation(alternate), { platform: 'win32', app, version: '3.4.20', mode: 'manual' });
+  assert.deepEqual(installation(alternate), { platform: 'win32', app, version: '3.4.20', mode: 'native' });
   assert.equal(installation({ ...alternate, env: { TRAE_APP: path.join(root, 'missing') } }).app, undefined);
+  assert.deepEqual(installation({ ...alternate, env: { TRAE_APP: app } }),
+    { platform: 'win32', app, version: '3.4.20', mode: 'native' });
 });
 
-test('macOS selects native integration for a standard 3.4.20 install and manual for other versions or moved installs', t => {
+test('finds a verified Windows install registered outside the standard path', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'trae-custom-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const custom = path.join(root, 'Games/Trae CN/resources/app');
+  fs.mkdirSync(custom, { recursive: true });
+  fs.writeFileSync(path.join(custom, 'product.json'), JSON.stringify({ appVersion: '3.4.25' }));
+  const win = { platform: 'win32', env: { LOCALAPPDATA: path.join(root, 'empty') },
+    registry: () => undefined, uninstall: () => custom };
+  assert.deepEqual(installation(win), { platform: 'win32', app: custom, version: '3.4.25', mode: 'native' });
+  const unsupported = path.join(root, 'Games/Trae CN/resources/app-unsupported');
+  fs.mkdirSync(unsupported, { recursive: true });
+  fs.writeFileSync(path.join(unsupported, 'product.json'), JSON.stringify({ appVersion: '3.4.26' }));
+  assert.deepEqual(installation({ ...win, uninstall: () => unsupported }),
+    { platform: 'win32', app: unsupported, version: '3.4.26', mode: 'manual' });
+});
+
+test('macOS selects native integration for a verified 3.4.20 install and manual for other versions', t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'trae-mac-layout-'));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const mac = { platform: 'darwin', env: {}, home };
@@ -57,5 +78,5 @@ test('macOS selects native integration for a standard 3.4.20 install and manual 
   assert.deepEqual(installation(mac), { ...native, version: '3.4.25', mode: 'manual' });
   const moved = path.join(home, 'Moved/Trae CN.app/Contents/Resources/app');
   setVersion(moved, '3.4.20');
-  assert.deepEqual(installation({ ...mac, env: { TRAE_APP: moved } }), { ...native, app: moved, mode: 'manual' });
+  assert.deepEqual(installation({ ...mac, env: { TRAE_APP: moved } }), { ...native, app: moved, mode: 'native' });
 });

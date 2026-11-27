@@ -6,19 +6,19 @@
 
 ## 兼容性
 
-自动同步仅适用于下表中已核验的 Trae CN 构建和标准安装位置。移动过的应用或自定义位置安装的应用请手动接入。同步器在写入模型前会校验客户端文件的哈希。同一版本号下未通过校验的构建也请手动接入。
+自动同步适用于下表中已核验的 Trae CN 构建。插件会查找标准安装路径、Windows 安装器登记的安装位置（包括其他盘），以及 `TRAE_APP` 指定的路径。任何绝对路径上的已核验构建都可以使用自动同步；写入模型前仍会校验客户端 DLL 配置。同一版本号下未通过校验的构建也请手动接入。
 
 | 平台与 Trae CN 版本 | 接入方式 | 验证范围 |
 | --- | --- | --- |
-| Windows 3.4.18 | 标准安装支持自动同步 | 0.3.x 已验证目录同步和 DeepSeek 对话。 |
-| Windows 3.4.20 | 标准安装支持自动同步 | 0.3.x 已验证模型新增、修改、删除和回读。 |
-| Windows 3.4.24 | 标准安装支持自动同步 | 0.4.0 已验证凭据和登录会话。验证时用实际账户新增、查询和删除临时模型，测试条目已清理。 |
-| Windows 3.4.25（构建 2.3.108162） | 标准安装支持自动同步 | 已验证 4 个现有模型的后台同步和 Trae 账户目录回读。 |
-| macOS 3.4.20 | 标准安装支持自动同步 | 审阅者验证了模型新增和移除，确认客户端文件未改动，应用代码签名仍有效。 |
+| Windows 3.4.18 | 已核验安装支持自动同步 | 0.3.x 已验证目录同步和 DeepSeek 对话。 |
+| Windows 3.4.20 | 已核验安装支持自动同步 | 0.3.x 已验证模型新增、修改、删除和回读。 |
+| Windows 3.4.24 | 已核验安装支持自动同步 | 0.4.0 已验证凭据和登录会话。验证时用实际账户新增、查询和删除临时模型，测试条目已清理。 |
+| Windows 3.4.25（构建 2.3.108162） | 已核验安装支持自动同步 | 已验证 4 个现有模型的后台同步和 Trae 账户目录回读。 |
+| macOS 3.4.20 | 已核验安装支持自动同步 | 审阅者验证了模型新增和移除，确认客户端文件未改动，应用代码签名仍有效。 |
 | 其他版本或构建（包括 macOS 3.4.24 和 3.4.25） | 手动接入 | 自动同步未经验证。 |
 | Linux | 桌面端适配未经验证 | CI 运行可移植代码的单元测试。 |
 
-Windows 标准安装位于 `%LOCALAPPDATA%\Programs\Trae CN`。macOS 标准安装为 `/Applications/Trae CN.app` 或 `~/Applications/Trae CN.app`。可以将 `TRAE_APP` 设为包含 `product.json` 的应用资源目录，供插件发现客户端。自定义路径仍使用手动模式。感谢 CN-P5 分享 Windows 多盘安装的发现方法。[Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen)
+Windows 标准安装位于 `%LOCALAPPDATA%\Programs\Trae CN`。插件还会读取 Windows 安装器登记的 `InstallLocation`，因此装在 D 盘等非标准位置也能自动发现；绿色版或移动安装可用 `TRAE_APP` 指向包含 `product.json` 的应用资源目录。macOS 标准安装为 `/Applications/Trae CN.app` 或 `~/Applications/Trae CN.app`，也可以用 `TRAE_APP`/`TRAE_CN_APP_ROOT` 指向其他位置。任何绝对路径上的已核验构建都可以自动同步；未通过 DLL 配置校验的构建仍需手动接入。感谢 CN-P5 分享 Windows 多盘安装的发现方法。[Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen)
 
 ## 安装
 

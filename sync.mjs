@@ -5,7 +5,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { TraeAPI, readSession, ORIGIN } from './trae-api.mjs';
-import { localCredential } from './trae-local-token.mjs';
+import { encodeCredential, localCredential, readNativeCredentialProfile } from './trae-local-token.mjs';
 
 const CREDENTIAL_FORMAT = 2; // Both AK and empty SK use native envelopes.
 
@@ -84,7 +84,12 @@ function originalRequest(entry) {
 
 // Only this plugin's endpoint and IDs are managed. The vendor remains the
 // source of truth; nothing is injected into Trae's SQLite cache.
-export async function syncModels({ paths = syncPaths(), apiFactory = () => new TraeAPI(readSession()), credentialFactory = localCredential, port = 3498 } = {}) {
+export async function syncModels({ paths = syncPaths(), app,
+  apiFactory = () => new TraeAPI(readSession({ app }), {
+    encodeEmptySecret: () => encodeCredential('', readNativeCredentialProfile({ app })),
+  }),
+  credentialFactory = file => localCredential(file, { profile: readNativeCredentialProfile({ app }) }),
+  port = 3498 } = {}) {
   const unlock = lock(paths.lock);
   try {
     const control = read(paths.control, null);

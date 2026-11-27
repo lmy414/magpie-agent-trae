@@ -6,19 +6,19 @@ Use Magpie models and routing groups from Trae CN’s model picker. Automaticall
 
 ## Compatibility
 
-Native sync requires a verified Trae CN build and a standard installation path. Use manual setup for moved or custom installations. The sync process checks client file hashes before writing model entries. Use manual setup if a build fails those checks, even if its version is listed below.
+Native sync requires a verified Trae CN build. The plugin finds the standard install path, an install the Windows installer registered (including another drive), or the path given in `TRAE_APP`. Any absolute path with a verified build uses native sync; the DLL profile is checked before the first write. Use manual setup if a build fails those checks, even if its version is listed below.
 
 | Platform and Trae CN version | Integration | Validation |
 | --- | --- | --- |
-| Windows 3.4.18 | Native sync on standard installs | Catalog sync and DeepSeek chat were verified in 0.3.x. |
-| Windows 3.4.20 | Native sync on standard installs | Model creation, updates, deletion, and readback were verified in 0.3.x. |
-| Windows 3.4.24 | Native sync on standard installs | In 0.4.0, credentials and the sign-in session were verified. A temporary model was added, listed, and deleted using a real account, and the test entry was cleaned up. |
-| Windows 3.4.25 (build 2.3.108162) | Native sync on standard installs | Verified background sync and Trae account catalog readback for four existing models. |
-| macOS 3.4.20 | Native sync on standard installs | The reviewer verified model addition and removal, confirmed that client files were unchanged, and verified that the application’s code signature remained valid. |
+| Windows 3.4.18 | Native sync on verified installs | Catalog sync and DeepSeek chat were verified in 0.3.x. |
+| Windows 3.4.20 | Native sync on verified installs | Model creation, updates, deletion, and readback were verified in 0.3.x. |
+| Windows 3.4.24 | Native sync on verified installs | In 0.4.0, credentials and the sign-in session were verified. A temporary model was added, listed, and deleted using a real account, and the test entry was cleaned up. |
+| Windows 3.4.25 (build 2.3.108162) | Native sync on verified installs | Verified background sync and Trae account catalog readback for four existing models. |
+| macOS 3.4.20 | Native sync on verified installs | The reviewer verified model addition and removal, confirmed that client files were unchanged, and verified that the application’s code signature remained valid. |
 | Other versions or builds (including macOS 3.4.24 and 3.4.25) | Manual setup | Native sync is unverified. |
 | Linux | Desktop integration is unverified | CI runs portable unit tests. |
 
-The standard Windows path is `%LOCALAPPDATA%\Programs\Trae CN`. On macOS, the standard locations are `/Applications/Trae CN.app` and `~/Applications/Trae CN.app`. Set `TRAE_APP` to the resources directory containing `product.json` if you need to point the plugin to a specific installation. Custom paths use manual mode. Thanks to CN-P5 for sharing the Windows multi-drive discovery approach in [Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen).
+The standard Windows path is `%LOCALAPPDATA%\Programs\Trae CN`. The plugin also reads the Windows installer's `InstallLocation` (so a non-standard drive is found without configuration); set `TRAE_APP` to the resources directory containing `product.json` for portable or moved installations. On macOS, the standard locations are `/Applications/Trae CN.app` and `~/Applications/Trae CN.app`; `TRAE_APP`/`TRAE_CN_APP_ROOT` points at another app. A verified build at any absolute path can use native sync; a path whose build fails the DLL-profile check must use manual setup. Thanks to CN-P5 for sharing the Windows multi-drive discovery approach in [Magpie Trae Evergreen](https://github.com/CN-P5/magpie-trae-evergreen).
 
 ## Installation
 
